@@ -26,6 +26,16 @@ h1 { font-size: clamp(26px, 3vw, 34px); margin: 0; color: #073b55; letter-spacin
 .file-button.disabled { opacity: .6; cursor: wait; }
 .secondary-button { background: transparent; color: #075c45; }
 .secondary-button:hover { background: #d9eae3; }
+.auto-import { padding: 16px 4vw; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; border-bottom: 1px solid #cbdfd7; background: white; }
+.auto-import-copy { flex: 1; min-width: min(100%, 300px); }
+.auto-import p { margin: 6px 0 0; line-height: 1.5; font-size: 14px; color: #4d6572; }
+.auto-import-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.auto-import-help { width: 100%; font-size: 14px; line-height: 1.6; }
+.auto-import-help summary { cursor: pointer; color: #086949; padding-block: 6px; }
+.auto-import-help ol { padding-left: 24px; max-width: 80ch; }
+.auto-import-help li + li { margin-top: 8px; }
+.auto-import .auto-import-error { width: 100%; padding: 12px 16px; border: 1px solid #e4c894; background: #fff6e5; color: #745017; border-radius: 4px; }
+.auto-import .auto-import-note { width: 100%; font-weight: 600; color: #745017; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .data-notice { margin: 0; padding: 12px 4vw; color: #4d6572; font-size: 14px; line-height: 1.5; }
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); border-block: 1px solid #d4e0e4; background: white; }

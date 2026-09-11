@@ -19,13 +19,16 @@ Repository access is not needed to view the map.
    or case to inspect it. **Luk fil** removes the dataset from the displayed app.
    Refreshing/closing the browser tab also clears it.
 
-The default audience is **advisors in Bygninger**. Initial load, each new Excel
+The default audience is **advisors in Bygninger**. Initial load, each newly selected Excel
 import, **Luk fil** and **Nulstil** select **Bygninger (alle)**, combining Bygninger
 and its regional departments (including Bygninger Vest and Bygninger Øst).
 The map, list, department KPIs and advisor/status options use that scope.
 Changing department clears the previous advisor and status to avoid stale filters.
 Other departments remain available via an explicit selection; this is a default
-view, not access control. The full workbook remains in browser memory until closed.
+view, not access control. Automatic updates preserve the current filters (advisor
+and status are cleared only when no longer available in that department). Details
+and map-group selection close on an update because Excel row numbers can change.
+The imported case data remains in browser memory until closed.
 
 The workbook is read **in the browser**, not uploaded to GitHub or the backend.
 There is no localStorage/sessionStorage persistence or analytics. Every colleague
@@ -76,29 +79,47 @@ filtered; case markers, counts, controls and attribution retain their original
 contrast. Use **Baggrund → Standard** on the map to restore the unmodified colors.
 This does not change the tile provider, coordinates or data handling.
 
-### Automatic refresh without a new IT integration (proposed next step)
+### Automatic refresh of SharePoint through OneDrive (no new IT integration)
 
-The manual import above is implemented. Automatic refresh is **not yet implemented**.
-The practical route is to reuse the user's existing SharePoint access:
+**Tilslut autoimport** is available in Edge/Chrome on a computer over HTTPS.
+The original workbook remains in SharePoint; OneDrive syncs it to a local file
+which the browser can read with the user's permission:
 
 1. In the SharePoint document library, add a OneDrive shortcut or use **Sync**.
-   Make `Salgsliste.xlsx` available locally with the OneDrive desktop client.
+   Make `Salgsliste.xlsx` available locally with the OneDrive desktop client
+   (File Explorer: **Always keep on this device** / **Behold altid på denne enhed**).
    This requires existing file access and an organization policy permitting sync.
-2. Add a separate **Connect synced file** action in Edge/Chrome on HTTPS, using
-   `showOpenFilePicker()` with read-only access to the selected file.
-3. While the map is open, call the handle's `getFile()` periodically (e.g. 60 seconds)
-   and re-import when `lastModified` or size changes. Keep the last valid dataset
-   and show an explicit stale/error warning if OneDrive is saving, permission is
-   revoked or a replacement file invalidates the handle. Also check on tab focus.
-4. After reload, ask the user to reconnect/re-authorize as needed. Do not assume
-   persistent file permission or store workbook contents in browser storage.
+2. Select **Tilslut autoimport** and choose that synced file, not a downloaded
+   snapshot. The browser's file picker grants read-only access. No password or
+   Microsoft access token is supplied to the map.
+3. The map reads immediately, then checks **every 60 seconds** and on tab focus/
+   visibility return. Changed `lastModified` or size triggers a new import.
+   Only complete successful parses replace the case data. The file version is
+   rechecked after parsing to reject a save that happened mid-read.
+4. Use **Tjek nu** for an immediate check, **Pause** / **Genoptag** to control
+   polling, and **Tilslut fil igen** if access is lost or OneDrive replaced the file.
+   **Luk fil** disconnects and removes the case data. Manual file import also
+   disconnects autoimport. A canceled picker leaves the existing connection alone.
+5. After a page reload, select the file again. Neither the handle nor workbook
+   contents are saved in localStorage, sessionStorage or IndexedDB.
+
+The status shows the last successful local check and the file's saved timestamp;
+neither proves that OneDrive has the latest SharePoint version. Errors show a stale
+data warning and retain the previous successful dataset, with bounded periodic
+retries (no concurrent reads). Pausing/disconnecting invalidates any in-flight
+result. There is no demo fallback after an import failure.
 
 OneDrive handles SharePoint synchronization under the user's existing login;
 the map never needs Graph credentials or a new Entra app. Browser access still
 requires the user's explicit file selection. The tab/PC must be running;
 background tabs can be throttled, so this is **not an unattended 24/7 server sync**.
+It sees saved local changes only, not unsaved Excel edits or cloud changes that
+OneDrive has not downloaded. Revisions with both identical size and timestamp are
+not detected automatically; reconnect to force a read in that unusual case.
 If the company blocks OneDrive sync or browser file access, this route cannot
-bypass that policy. Other browsers retain the manual import path.
+bypass that policy. Firefox/Safari and unsupported contexts show a clear manual
+import message rather than attempting unavailable APIs. This feature does not
+provision OneDrive, change tenant policies, or directly fetch the SharePoint URL.
 
 References: [Microsoft: SharePoint/OneDrive sync](https://learn.microsoft.com/en-us/sharepoint/sharepoint-sync)
 and [Chrome: File System Access API](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access).

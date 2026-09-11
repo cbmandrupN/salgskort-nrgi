@@ -4,6 +4,9 @@ import type { ApiResponse, Case, CaseStatus } from './types/cases'
 import { fetchCases } from './lib/api'
 import { DEFAULT_DEPARTMENT, departmentAdvisors, matchesDepartment } from './lib/departments'
 import { CaseMap, hasPosition, locationKey } from './components/CaseMap'
+import { AutoImport } from './components/AutoImport'
+import { readWorkbookFile, WorkbookWatch } from './lib/file-watch'
+import type { FilePickerWindow, WatchState } from './lib/file-watch'
 
 const statusLabels: Record<CaseStatus, string> = {
   ny: 'Ny', i_gang: 'I gang', tilbud_sendt: 'Tilbud sendt', vundet: 'Vundet',
@@ -19,6 +22,11 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
   const [fileName, setFileName] = useState('')
+  const [picking, setPicking] = useState(false)
+  const [pickerError, setPickerError] = useState('')
+  const [watchState, setWatchState] = useState<WatchState | null>(null)
+  const watcher = useRef<WorkbookWatch | null>(null)
+  const autoSupported = window.isSecureContext && typeof (window as FilePickerWindow).showOpenFilePicker === 'function'
   const [selected, setSelected] = useState<Case | null>(null)
   const [search, setSearch] = useState('')
   const [advisor, setAdvisor] = useState('')
@@ -41,24 +49,82 @@ export default function App() {
     return () => { active = false }
   }, [])
 
+  useEffect(() => {
+    const check = () => { if (document.visibilityState === 'visible') watcher.current?.refresh() }
+    window.addEventListener('focus', check)
+    document.addEventListener('visibilitychange', check)
+    return () => {
+      window.removeEventListener('focus', check)
+      document.removeEventListener('visibilitychange', check)
+      watcher.current?.dispose()
+    }
+  }, [])
+
+  function disconnectWatch() {
+    watcher.current?.dispose()
+    watcher.current = null
+    setWatchState(null)
+    setPickerError('')
+  }
+
   function resetFilters() {
     setSearch(''); setAdvisor(''); setDepartment(DEFAULT_DEPARTMENT); setStatus('')
     setUnresolvedOnly(false); setArea(''); setSelected(null)
+  }
+
+  async function connectAutoImport() {
+    const picker = (window as FilePickerWindow).showOpenFilePicker
+    if (!picker || picking || importing) return
+    setPicking(true)
+    setPickerError('')
+    try {
+      // Invoke directly in the click gesture, before any asynchronous imports.
+      const [handle] = await picker.call(window, {
+        multiple: false, excludeAcceptAllOption: true,
+        types: [{ description: 'Excel-salgsark', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] } }],
+      })
+      if (!handle) throw new Error('Der blev ikke valgt en fil.')
+      const current = ++revision.current
+      disconnectWatch()
+      setLoading(false)
+      setError('')
+      const next = new WorkbookWatch(handle, {
+        onState: state => { if (current === revision.current) setWatchState(state) },
+        onData: (result, file, first) => {
+          if (current !== revision.current) return
+          setData(result)
+          setFileName(file.name)
+          setError('')
+          if (first) resetFilters()
+          else {
+            // Row numbers are not stable identities when rows are inserted/deleted.
+            setSelected(null)
+            setArea('')
+          }
+        },
+      })
+      watcher.current = next
+      next.start()
+    } catch (reason) {
+      if (!(reason instanceof Error && reason.name === 'AbortError')) {
+        setPickerError('Filen kunne ikke tilsluttes. Tillad læseadgang, eller brug Åbn Excel-fil.')
+      }
+    } finally {
+      setPicking(false)
+    }
   }
 
   async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0]
     event.target.value = ''
     if (!file) return
+    disconnectWatch()
     revision.current++
     setLoading(false)
     setImporting(true)
     setError('')
     try {
-      if (!file.name.toLowerCase().endsWith('.xlsx')) throw new Error('Vælg en Excel-fil i .xlsx-format.')
-      if (file.size > 10 * 1024 * 1024) throw new Error('Filen må højst fylde 10 MB.')
-      const { importWorkbook } = await import('./lib/workbook')
-      const result = await importWorkbook(await file.arrayBuffer())
+      const result = await readWorkbookFile(file)
       setData(result)
       setFileName(file.name)
       resetFilters()
@@ -71,6 +137,7 @@ export default function App() {
 
   async function closeFile() {
     const current = ++revision.current
+    disconnectWatch()
     setData(null); setFileName(''); setSelected(null); setError(''); resetFilters()
     setLoading(true)
     try {
@@ -84,6 +151,11 @@ export default function App() {
   }
 
   const departmentCases = useMemo(() => data?.cases.filter(c => matchesDepartment(c, department)) ?? [], [data, department])
+  useEffect(() => {
+    if (!data) return
+    if (advisor && !departmentCases.some(c => advisor === '__missing' ? !c.advisor : c.advisor === advisor)) setAdvisor('')
+    if (status && !departmentCases.some(c => c.status === status)) setStatus('')
+  }, [data, departmentCases, advisor, status])
   const placedCount = departmentCases.filter(hasPosition).length
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('da-DK')
@@ -119,13 +191,18 @@ export default function App() {
         <strong>{fileName || 'Brug dit eget salgsark'}</strong>
         <p>{local ? 'Kun i denne fane. Filen gemmes eller uploades ikke.' : 'Åbn Salgsliste.xlsx direkte fra din computer. Ingen SharePoint-login.'}</p>
       </div>
-      <label className={`file-button${importing ? ' disabled' : ''}`}>
+      <label className={`file-button${importing || picking ? ' disabled' : ''}`}>
         <input className="visually-hidden" type="file" accept=".xlsx" aria-label="Åbn Excel-fil"
-          disabled={importing} onChange={onFileChange} />
+          disabled={importing || picking} onChange={onFileChange} />
         {importing ? 'Indlæser…' : local ? 'Skift Excel-fil' : 'Åbn Excel-fil'}
       </label>
-      {local && <button className="secondary-button" disabled={importing || loading} onClick={closeFile}>Luk fil</button>}
+      {(local || watchState) && <button className="secondary-button" disabled={importing || loading || picking} onClick={closeFile}>Luk fil</button>}
     </section>
+
+    <AutoImport supported={autoSupported} picking={picking} disabled={importing}
+      state={watchState} pickerError={pickerError} onConnect={connectAutoImport}
+      onPause={() => watcher.current?.pause()} onResume={() => watcher.current?.start()}
+      onRefresh={() => watcher.current?.refresh()} />
 
     {error && <section className="error-banner" role="alert"><strong>Data kunne ikke indlæses</strong><p>{error}</p><p>Vælg en gyldig fil ovenfor. Eventuelle tidligere viste data er uændrede.</p></section>}
     {(loading || importing) && <section className="loading-state" role="status" aria-live="polite">
