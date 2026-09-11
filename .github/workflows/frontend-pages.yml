@@ -23,7 +23,10 @@ jobs:
         working-directory: frontend
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
-          VITE_DEMO_MODE: "false"
+          # No backend is hosted yet. Ship in explicit demo mode until a real
+          # VITE_API_BASE_URL repo variable is configured for a deployed backend;
+          # set VITE_DEMO_MODE=false as a repo variable once that exists.
+          VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE || 'true' }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: frontend/dist}
