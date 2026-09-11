@@ -19,6 +19,14 @@ Repository access is not needed to view the map.
    or case to inspect it. **Luk fil** removes the dataset from the displayed app.
    Refreshing/closing the browser tab also clears it.
 
+The default audience is **advisors in Bygninger**. Initial load, each new Excel
+import, **Luk fil** and **Nulstil** select **Bygninger (alle)**, combining Bygninger
+and its regional departments (including Bygninger Vest and Bygninger Øst).
+The map, list, department KPIs and advisor/status options use that scope.
+Changing department clears the previous advisor and status to avoid stale filters.
+Other departments remain available via an explicit selection; this is a default
+view, not access control. The full workbook remains in browser memory until closed.
+
 The workbook is read **in the browser**, not uploaded to GitHub or the backend.
 There is no localStorage/sessionStorage persistence or analytics. Every colleague
 opens their own copy; sharing the website URL does not share the loaded workbook.
