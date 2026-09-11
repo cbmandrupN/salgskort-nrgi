@@ -5,6 +5,7 @@ import { fetchCases } from './lib/api'
 import { DEFAULT_DEPARTMENT, departmentAdvisors, matchesDepartment } from './lib/departments'
 import { CaseMap, hasPosition, locationKey } from './components/CaseMap'
 import { readWorkbookFile } from './lib/read-workbook-file'
+import { loadSavedImport, removeSavedImport, saveImport } from './lib/saved-import'
 
 const statusLabels: Record<CaseStatus, string> = {
   ny: 'Ny', i_gang: 'I gang', tilbud_sendt: 'Tilbud sendt', vundet: 'Vundet',
@@ -19,7 +20,9 @@ export default function App() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [importing, setImporting] = useState(false)
+  const [removing, setRemoving] = useState(false)
   const [fileName, setFileName] = useState('')
+  const [restoreFailed, setRestoreFailed] = useState(false)
   const [selected, setSelected] = useState<Case | null>(null)
   const [search, setSearch] = useState('')
   const [advisor, setAdvisor] = useState('')
@@ -32,8 +35,18 @@ export default function App() {
   useEffect(() => {
     let active = true
     const current = revision.current
-    fetchCases().then(result => {
-      if (active && current === revision.current) setData(result)
+    loadSavedImport().catch(reason => {
+      if (active && current === revision.current) setRestoreFailed(true)
+      throw new Error(`${reason instanceof Error ? reason.message : 'Lokal lagring kunne ikke åbnes.'} Den gemte fil kunne ikke gendannes. Vælg filen igen, eller fjern den gemte kopi.`)
+    }).then(async saved => {
+      if (!active || current !== revision.current) return
+      if (saved) {
+        setData(saved.data)
+        setFileName(saved.fileName)
+      } else {
+        const result = await fetchCases()
+        if (active && current === revision.current) setData(result)
+      }
     }).catch(reason => {
       if (active && current === revision.current) setError(reason instanceof Error ? reason.message : 'Sagerne kunne ikke hentes.')
     }).finally(() => {
@@ -57,11 +70,17 @@ export default function App() {
     setError('')
     try {
       const result = await readWorkbookFile(file)
+      try {
+        await saveImport(file.name, result)
+      } catch (reason) {
+        throw new Error(`Filen kunne ikke gemmes i browseren. ${reason instanceof Error ? reason.message : 'Kontrollér browserens lagerplads og tilladelse til at gemme webstedsdata.'}`)
+      }
       setData(result)
       setFileName(file.name)
+      setRestoreFailed(false)
       resetFilters()
     } catch (reason) {
-      setError(`${reason instanceof Error ? reason.message : 'Filen kunne ikke indlæses.'} Den nye fil er ikke indlæst.`)
+      setError(`${reason instanceof Error ? reason.message : 'Filen kunne ikke indlæses.'} Den nye fil er ikke indlæst. Den tidligere kopi er uændret. Vælg filen igen for at prøve på ny.`)
     } finally {
       setImporting(false)
     }
@@ -69,8 +88,18 @@ export default function App() {
 
   async function closeFile() {
     const current = ++revision.current
-    setData(null); setFileName(''); setSelected(null); setError(''); resetFilters()
+    setError('')
     setLoading(true)
+    setRemoving(true)
+    try {
+      await removeSavedImport()
+    } catch (reason) {
+      setError(`Den gemte fil kunne ikke fjernes. ${reason instanceof Error ? reason.message : 'Kontrollér browserens tilladelse til lokal lagring.'} Prøv igen; filen er stadig gemt.`)
+      setLoading(false)
+      setRemoving(false)
+      return
+    }
+    setData(null); setFileName(''); setRestoreFailed(false); resetFilters()
     try {
       const result = await fetchCases()
       if (current === revision.current) setData(result)
@@ -78,6 +107,7 @@ export default function App() {
       if (current === revision.current) setError(reason instanceof Error ? reason.message : 'Sagerne kunne ikke hentes.')
     } finally {
       if (current === revision.current) setLoading(false)
+      setRemoving(false)
     }
   }
 
@@ -115,19 +145,20 @@ export default function App() {
     <section className="import-bar" aria-label="Indlæs dit salgsark">
       <div className="import-copy">
         <strong>{fileName || 'Åbn den seneste Salgsliste.xlsx'}</strong>
-        <p>{local ? 'Viser den valgte kopi. Åbn filen igen, når du har en nyere version. Filen uploades ikke.' : 'Download den seneste fil fra SharePoint, og åbn den her. Filen læses kun i din browser.'}</p>
+        <p>{local ? 'Gemt i denne browser og klar næste gang. Vælg Skift Excel-fil, når du har en nyere version.' : 'Download den seneste fil fra SharePoint, og åbn den her. Sagerne gemmes kun i denne browser.'}</p>
+        <p>Ikke delt med kolleger. Brug kun din egen browserprofil på en betroet computer.</p>
       </div>
-      <label className={`file-button${importing ? ' disabled' : ''}`}>
+      <label className={`file-button${importing || removing ? ' disabled' : ''}`}>
         <input className="visually-hidden" type="file" accept=".xlsx" aria-label="Åbn Excel-fil"
-          disabled={importing} onChange={onFileChange} />
+          disabled={importing || removing} onChange={onFileChange} />
         {importing ? 'Indlæser…' : local ? 'Skift Excel-fil' : 'Åbn Excel-fil'}
       </label>
-      {local && <button className="secondary-button" disabled={importing || loading} onClick={closeFile}>Luk fil</button>}
+      {(local || restoreFailed) && <button className="secondary-button" disabled={importing || loading} onClick={closeFile}>Fjern gemt fil</button>}
     </section>
 
-    {error && <section className="error-banner" role="alert"><strong>Data kunne ikke indlæses</strong><p>{error}</p><p>Vælg en gyldig fil ovenfor. Eventuelle tidligere viste data er uændrede.</p></section>}
+    {error && <section className="error-banner" role="alert"><strong>Data kunne ikke opdateres</strong><p>{error}</p></section>}
     {(loading || importing) && <section className="loading-state" role="status" aria-live="polite">
-      <div className="skeleton" /><p>{importing ? 'Læser Excel-filen lokalt og finder postnummerområder…' : 'Henter oversigten…'}</p>
+      <div className="skeleton" /><p>{importing ? 'Læser og gemmer Excel-sagerne i denne browser…' : 'Henter oversigten…'}</p>
     </section>}
     {!data && !loading && !importing && <section className="empty-state"><h2>Åbn dit salgsark for at komme i gang</h2><p>Vælg en .xlsx-fil med fanen Opgaver. Sagerne bliver kun i din browser.</p></section>}
 
@@ -204,7 +235,7 @@ export default function App() {
           </details>}
         </aside>
       </section>
-      <footer className="footnote">Excel-import: kun lokal hukommelse · Ingen kundeoplysninger sendes til geokodning · Baggrundskort: OpenStreetMap · Postnummercentre: DAWA/Dataforsyningen</footer>
+      <footer className="footnote">Excel-import: gemt lokalt i denne browser · Ingen kundeoplysninger sendes til geokodning · Baggrundskort: OpenStreetMap · Postnummercentre: DAWA/Dataforsyningen</footer>
     </>}
   </main>
 }

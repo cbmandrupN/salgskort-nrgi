@@ -7,7 +7,7 @@ Map-first dashboard for Danish sales and project cases. The frontend is a static
 The map is deployed at **https://cbmandrupn.github.io/salgskort-nrgi/**.
 This is the app URL, not a source repository link. Colleagues do not need repository access.
 The Pages workflow defaults to `VITE_DEMO_MODE=true`: only the fictional
-cases in `frontend/src/data/demo-cases.json` are shown, with approximate map positions.
+cases in `frontend/src/data/demo-cases.json` are shown when no local import is saved, with approximate map positions.
 It does not call a backend or read SharePoint, and it is visibly labelled as a demo.
 Repository access is not needed to view the map.
 
@@ -16,27 +16,42 @@ Repository access is not needed to view the map.
 1. Download the latest `Salgsliste.xlsx` from SharePoint, open the map and select **Åbn Excel-fil**.
 2. Choose your local `Salgsliste.xlsx` with the **Opgaver** worksheet.
 3. Filter by advisor, department or progress, search cases, and click a map group
-   or case to inspect it. **Luk fil** removes the dataset from the displayed app.
-   Refreshing/closing the browser tab also clears it. Select **Skift Excel-fil**
-   when you have a newer copy, even if it has the same filename.
+   or case to inspect it. The latest successful import is saved automatically and
+   restored when you refresh or reopen the site in the same browser profile.
+4. Select **Skift Excel-fil** when you have a newer copy, even if it has the same
+   filename. **Fjern gemt fil** removes the saved copy and clears the current view.
 
 The app uses **manual import only**. No OneDrive synchronization, Power Automate
 flow or File System Access permission is needed. There is no automatic polling
 or background refresh; the displayed cases are a snapshot of the selected file.
 
 The default audience is **advisors in Bygninger**. Initial load, each newly selected Excel
-import, **Luk fil** and **Nulstil** select **Bygninger (alle)**, combining Bygninger
+import, **Fjern gemt fil** and **Nulstil** select **Bygninger (alle)**, combining Bygninger
 and its regional departments (including Bygninger Vest and Bygninger Øst).
 The map, list, department KPIs and advisor/status options use that scope.
 Changing department clears the previous advisor and status to avoid stale filters.
 Other departments remain available via an explicit selection; this is a default
 view, not access control. A successful new import resets the filters and closes
 details/map-group selection because Excel row numbers can change.
-The imported case data remains in browser memory until closed.
+Filters are not saved; reopening the site starts with the Bygninger overview.
 
 The workbook is read **in the browser**, not uploaded to GitHub or the backend.
+The latest parsed case records, row issues, filename and original import timestamp
+are stored in IndexedDB (`salgskort-nrgi-imports`), not the original workbook or its
+excluded contact columns. A successful import atomically replaces the previous
+snapshot; parse/storage failures keep the previous snapshot and show an error.
+Saved-data errors are explicit, never masked with demo data. An unreadable saved
+copy can be replaced by a new import or removed with **Fjern gemt fil**.
+
 There is no localStorage/sessionStorage persistence or analytics. Every colleague
 opens their own copy; sharing the website URL does not share the loaded workbook.
+The saved records contain customer information: use a trusted computer and your
+own browser profile. Browser storage is not an encrypted vault or an access-control
+boundary; other scripts on the same origin can access it. Records remain until
+replaced, explicitly removed, or cleared/evicted by the browser. Private browsing,
+storage restrictions and cleared site data can prevent retention. This is not a
+backup or cross-device/shared storage. Other open tabs keep their current snapshot
+until reloaded; the last successful import across tabs is the saved copy.
 Do not commit the workbook, screenshots of customer data or extracted case records.
 
 ### Mapping and placement
