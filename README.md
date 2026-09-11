@@ -28,12 +28,35 @@ or background refresh; the displayed cases are a snapshot of the selected file.
 The default audience is **advisors in Bygninger**. Initial load, each newly selected Excel
 import, **Fjern gemt fil** and **Nulstil** select **Bygninger (alle)**, combining Bygninger
 and its regional departments (including Bygninger Vest and Bygninger Øst).
-The map, list, department KPIs and advisor/status options use that scope.
+The map, list, department KPIs and status options use that scope.
 Changing department clears the previous advisor and status to avoid stale filters.
 Other departments remain available via an explicit selection; this is a default
 view, not access control. A successful new import resets the filters and closes
 details/map-group selection because Excel row numbers can change.
 Filters are not saved; reopening the site starts with the Bygninger overview.
+
+The top advisor bar replaces the advisor dropdown and lists **only Bygninger
+advisors**, including its regional departments. Names come from the imported cases;
+**Casper Bøvling is always included and always pink**, with 0 cases if absent.
+Each named advisor has a distinct color. Names are matched ignoring case,
+extra whitespace, a trailing initials period and Unicode composition. Shared
+assignments separated by `/` are split into individual advisors: their case is
+counted once in the map/list, but counts towards each assigned advisor's total.
+Colors are derived from the full
+Bygninger roster, not filtered results, so filters, row ordering and reloads do not
+change them. A changed advisor roster can reassign colliding palette slots.
+Counts in this bar describe the full Bygninger snapshot, not the current search.
+Click a name to filter; click it again or **Alle i Bygninger** to show all advisors.
+These buttons return the department scope to Bygninger, retaining search/status
+filters when applicable. Missing advisors have a separate gray button.
+
+Map markers, list entries and case details use the same advisor colors. Locations
+with several advisors show segments proportional to advisor assignments around the
+case count (a shared case contributes to each advisor's segment);
+hover/focus gives the named breakdown, and click/Enter opens the area list. Colors
+are accompanied by names, counts and button selection state, not used alone.
+Other departments remain available through the department filter, but their cases
+are gray and their advisors never appear in the Bygninger advisor bar.
 
 The workbook is read **in the browser**, not uploaded to GitHub or the backend.
 The latest parsed case records, row issues, filename and original import timestamp

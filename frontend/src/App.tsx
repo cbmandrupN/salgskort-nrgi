@@ -2,8 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { ApiResponse, Case, CaseStatus } from './types/cases'
 import { fetchCases } from './lib/api'
-import { DEFAULT_DEPARTMENT, departmentAdvisors, matchesDepartment } from './lib/departments'
-import { CaseMap, hasPosition, locationKey } from './components/CaseMap'
+import { DEFAULT_DEPARTMENT, matchesDepartment } from './lib/departments'
+import { CaseMap } from './components/CaseMap'
+import { AdvisorBar } from './components/AdvisorBar'
+import { advisorNames, buildingAdvisors, caseAdvisors, hasAdvisor, MISSING_ADVISOR } from './lib/advisors'
+import { hasPosition, locationKey } from './lib/map-groups'
 import { readWorkbookFile } from './lib/read-workbook-file'
 import { loadSavedImport, removeSavedImport, saveImport } from './lib/saved-import'
 
@@ -112,18 +115,24 @@ export default function App() {
   }
 
   const departmentCases = useMemo(() => data?.cases.filter(c => matchesDepartment(c, department)) ?? [], [data, department])
+  const buildings = useMemo(() => data?.cases.filter(c => matchesDepartment(c, DEFAULT_DEPARTMENT)) ?? [], [data])
+  const advisors = useMemo(() => buildingAdvisors(buildings), [buildings])
+  const missingAdvisors = buildings.filter(c => !advisorNames(c.advisor).length).length
+  function selectAdvisor(key: string) {
+    setAdvisor(key); setDepartment(DEFAULT_DEPARTMENT); setArea(''); setSelected(null)
+    if (!buildings.some(c => c.status === status)) setStatus('')
+  }
   const placedCount = departmentCases.filter(hasPosition).length
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('da-DK')
     return departmentCases.filter(c =>
       (!needle || [c.customer_name, c.address_raw, c.case_number, c.postal_code].join(' ').toLocaleLowerCase('da-DK').includes(needle)) &&
-      (!advisor || (advisor === '__missing' ? !c.advisor : c.advisor === advisor)) &&
+      (!advisor || (advisor === MISSING_ADVISOR ? !advisorNames(c.advisor).length : hasAdvisor(c, advisor))) &&
       (!status || c.status === status) && (!unresolvedOnly || !hasPosition(c))
     )
   }, [departmentCases, search, advisor, status, unresolvedOnly])
   const visible = area ? filtered.filter(c => locationKey(c) === area) : filtered
   const detail = selected && visible.some(c => c.id === selected.id) ? selected : null
-  const advisors = departmentAdvisors(departmentCases)
   const departments = [...new Set(data?.cases.flatMap(c => c.department ? [c.department] : []))].sort((a, b) => a.localeCompare(b, 'da'))
   const availableStatuses = [...new Set(departmentCases.flatMap(c => c.status ? [c.status] : []))]
   const local = data?.meta.data_source === 'local'
@@ -135,6 +144,8 @@ export default function App() {
       <a className="brand" href="#overview" aria-label="Salgskort, overblik"><strong>NRGi</strong><span>Salgskort</span></a>
       <span className="source-pill">{local ? 'LOKAL EXCEL' : demo ? 'DEMO' : data ? 'LIVE DATA' : 'INGEN DATA'}</span>
     </header>
+    {data && <AdvisorBar advisors={advisors} selected={department === DEFAULT_DEPARTMENT ? advisor : null}
+      total={buildings.length} missing={missingAdvisors} onSelect={selectAdvisor} />}
 
     <section className="intro" id="overview">
       <div><h1>Sager i Danmark</h1><p>Overblik til rådgivere i Bygninger. Vælg rådgiver for at finde dine sager.</p></div>
@@ -175,10 +186,6 @@ export default function App() {
       <section className="toolbar" aria-label="Filtrér sager">
         <label className="search"><span>Søg</span><input type="search" placeholder="Virksomhed, adresse eller projektnr."
           value={search} onChange={e => { setSearch(e.target.value); setArea('') }} /></label>
-        <label><span>Rådgiver</span><select aria-label="Rådgiver" value={advisor} onChange={e => { setAdvisor(e.target.value); setArea('') }}>
-          <option value="">Alle rådgivere</option>{advisors.map(a => <option key={a}>{a}</option>)}
-          {departmentCases.some(c => !c.advisor) && <option value="__missing">Ikke angivet</option>}
-        </select></label>
         <label><span>Afdeling</span><select aria-label="Afdeling" value={department} onChange={e => {
           setDepartment(e.target.value); setAdvisor(''); setStatus(''); setArea(''); setSelected(null)
         }}>
@@ -198,7 +205,7 @@ export default function App() {
       </div>
       <section className="workspace">
         <div className="map-wrap" aria-label="Kort over sager">
-          <CaseMap cases={filtered} onAreaClick={key => { setArea(key); setSelected(null) }} />
+          <CaseMap cases={filtered} advisors={advisors} onAreaClick={key => { setArea(key); setSelected(null) }} />
           {!filtered.some(hasPosition) && <p className="map-notice">Ingen af de filtrerede sager har en placering.</p>}
         </div>
         <aside className="side-panel" aria-label="Sagsliste og detaljer">
@@ -209,7 +216,7 @@ export default function App() {
             <h3>{detail.customer_name || 'Virksomhed ikke angivet'}</h3>
             <p>{detail.address_raw || 'Adresse ikke angivet'}</p>
             <dl>
-              <dt>Rådgiver</dt><dd>{detail.advisor || 'Ikke angivet'}</dd>
+              <dt>Rådgiver</dt><dd>{caseAdvisors(detail, advisors).map(a => <span className="advisor-swatch" key={a.key} title={a.name} style={{ backgroundColor: a.color }} aria-hidden="true" />)} {detail.advisor || 'Ikke angivet'}</dd>
               <dt>Afdeling</dt><dd>{detail.department || 'Ikke angivet'}</dd>
               <dt>Status</dt><dd>{detail.status ? statusLabels[detail.status] : 'Ikke angivet'}</dd>
               {detail.status_basis && <><dt>Statusgrundlag</dt><dd>{detail.status_basis}</dd></>}
@@ -223,7 +230,7 @@ export default function App() {
             {visible.map(c => <button className="case-row" key={c.id} onClick={() => setSelected(c)}>
               <span><strong>{c.customer_name || 'Virksomhed ikke angivet'}</strong>
                 <small>{c.address_raw || 'Adresse ikke angivet'}</small>
-                <small>{c.advisor || 'Rådgiver mangler'} · {c.status ? statusLabels[c.status] : 'Status mangler'}{!hasPosition(c) ? ' · Uden placering' : ''}</small>
+                <small>{caseAdvisors(c, advisors).map(a => <span className="advisor-swatch" key={a.key} title={a.name} style={{ backgroundColor: a.color }} aria-hidden="true" />)} {c.advisor || 'Rådgiver mangler'} · {c.status ? statusLabels[c.status] : 'Status mangler'}{!hasPosition(c) ? ' · Uden placering' : ''}</small>
               </span><span aria-hidden="true">›</span>
             </button>)}
             {!visible.length && <div className="empty-state"><h3>Ingen sager matcher</h3><button className="text-button" onClick={resetFilters}>Nulstil filtrene</button></div>}
