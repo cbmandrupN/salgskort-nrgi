@@ -6,6 +6,7 @@ credentials or tokens ever leave the backend process.
 """
 from __future__ import annotations
 
+import base64
 import time
 
 import httpx
@@ -71,11 +72,19 @@ class GraphWorkbookClient:
         """Downloads the raw .xlsx bytes for the configured drive item."""
         s = self._settings
         token = await self._get_token()
-        path = s.graph_drive_item_path.strip("/")
-        url = (
-            f"https://graph.microsoft.com/v1.0/sites/{s.graph_site_id}"
-            f"/drive/root:/{path}:/content"
-        )
+        if s.graph_share_url:
+            url = (
+                "https://graph.microsoft.com/v1.0/shares/"
+                f"{_share_id_from_url(s.graph_share_url)}/driveItem/content"
+            )
+            label = "configured SharePoint sharing link"
+        else:
+            path = s.graph_drive_item_path.strip("/")
+            url = (
+                f"https://graph.microsoft.com/v1.0/sites/{s.graph_site_id}"
+                f"/drive/root:/{path}:/content"
+            )
+            label = path
         try:
             resp = await self._client.get(url, headers={"Authorization": f"Bearer {token}"})
         except httpx.HTTPError as exc:
@@ -83,6 +92,11 @@ class GraphWorkbookClient:
 
         if resp.status_code != 200:
             raise GraphDownloadError(
-                f"Graph-download fejlede ({resp.status_code}) for '{path}': {resp.text[:300]}"
+                f"Graph-download fejlede ({resp.status_code}) for '{label}': {resp.text[:300]}"
             )
         return resp.content
+
+
+def _share_id_from_url(url: str) -> str:
+    encoded = base64.urlsafe_b64encode(url.encode("utf-8")).decode("ascii").rstrip("=")
+    return f"u!{encoded}"

@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     graph_drive_item_path: str = Field(
         default="", description="Drive-relative path to the Excel workbook, e.g. 'Delte dokumenter/Salgskort.xlsx'"
     )
+    graph_share_url: str = Field(
+        default="",
+        description=(
+            "Optional SharePoint sharing URL. If set, the backend resolves it via "
+            "Microsoft Graph /shares/{shareId}/driveItem/content using app permissions."
+        ),
+    )
     graph_worksheet_name: str = Field(default="Salgskort", description="Worksheet/table name to read")
     graph_scope: str = Field(default="https://graph.microsoft.com/.default")
 
@@ -57,8 +64,7 @@ class Settings(BaseSettings):
             self.graph_tenant_id
             and self.graph_client_id
             and self.graph_client_secret
-            and self.graph_site_id
-            and self.graph_drive_item_path
+            and ((self.graph_site_id and self.graph_drive_item_path) or self.graph_share_url)
         )
 
 
