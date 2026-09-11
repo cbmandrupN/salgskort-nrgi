@@ -23,6 +23,6 @@ jobs:
         run: |
           docker run -d --name salgskort-api -p 8000:8000 salgskort-api
           trap 'docker logs salgskort-api; docker rm -f salgskort-api' EXIT
-          curl --fail --retry 12 --retry-connrefused --retry-delay 2 http://localhost:8000/health
+          curl --fail --retry 12 --retry-all-errors --retry-delay 2 --max-time 5 --retry-max-time 60 http://localhost:8000/health
           curl --fail http://localhost:8000/api/cases > cases.json
           python -c "import json; d=json.load(open('cases.json')); assert d['meta']['data_source']=='demo'; assert len(d['cases'])==5"
