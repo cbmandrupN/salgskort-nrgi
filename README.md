@@ -61,7 +61,10 @@ bodies from being logged. Run Uvicorn with `--no-proxy-headers` (as in the Docke
 image) so clients cannot forge the peer IP used by the in-process rate limiter.
 CORS is not the authentication boundary.
 
-The backend keeps one latest SQLite snapshot on its persistent disk. Do not run
+The backend keeps one latest SQLite snapshot on its persistent disk. In Docker,
+mount persistent storage at `/service/data`; the default database is
+`/service/data/shared.sqlite3`. The directory must exist and be writable by
+container UID **10001**. Do not run
 independent replicas with separate disks: they would serve different copies.
 Restrict volume/backup access, configure encryption at rest with your host, define
 backup/retention rules, and securely remove the volume/backups when retiring the
@@ -224,7 +227,7 @@ Copy `.env.example` files and configure the backend with `SALGSKORT_GRAPH_TENANT
 
 ## Deployment and privacy
 
-`.github/workflows/frontend-pages.yml` builds the public demo and deploys it to GitHub Pages. Pages must be enabled with **GitHub Actions** as its build source. For live deployment, host the backend separately (Azure Container Apps, Azure App Service, Fly.io, or equivalent), set `SALGSKORT_CORS_ALLOW_ORIGINS` to the exact Pages origin, and set `VITE_API_BASE_URL` to the backend URL during a live frontend build. Protect the live API with organizational authentication and authorization before connecting customer data: CORS is not access control and the current API has no user authentication. Store Graph secrets only in the backend host's secret store. Review SharePoint data minimisation, retention and access controls before importing customer information. Dataforsyningen and Nominatim have their own usage/attribution terms; configure a commercial provider if those terms do not fit expected traffic.
+`.github/workflows/frontend-pages.yml` builds the public demo by default and deploys it to GitHub Pages. Pages must be enabled with **GitHub Actions** as its build source. For live deployment, host the backend separately (Azure Container Apps, Azure App Service, Fly.io, or equivalent), set `SALGSKORT_CORS_ALLOW_ORIGINS` to the exact Pages origin, and set `VITE_API_BASE_URL` to the backend URL during a live frontend build. The shared `/api/shared/cases` endpoints enforce team-code authentication as described above. The Graph/demo `/api/cases` route has no built-in user authentication: protect it with organizational authentication and authorization before enabling live Graph data. CORS is not access control. Store Graph secrets only in the backend host's secret store. Review SharePoint data minimisation, retention and access controls before importing customer information. Dataforsyningen and Nominatim have their own usage/attribution terms; configure a commercial provider if those terms do not fit expected traffic.
 
 ## Integration inputs still needed
 
