@@ -58,8 +58,12 @@ no customer addresses are sent to a geocoding service. Cases in the same postcod
 share a counted marker; select it to see all its cases. The complete list remains
 available for keyboard users and unplaced cases.
 
-The lookup was generated from [DAWA/Dataforsyningen postcodes](https://api.dataforsyningen.dk/postnumre)
-on 2026-09-11 (1,089 entries with visual centers). Refresh only the public lookup
+The lookup was generated from [DAWA/Dataforsyningen land-only postcodes](https://api.dataforsyningen.dk/postnumre?landpostnumre=true)
+on 2026-09-11 (1,089 entries with land-clipped visual centers).
+The `landpostnumre=true` parameter is essential: ordinary postcode polygons include
+offshore territory, placing some west-coast centers far out in the North Sea.
+These remain approximate postcode references, never exact customer addresses.
+Refresh only the public lookup
 using `python scripts/update_postcodes.py`; that script never takes workbook input.
 Background map tiles are requested from OpenStreetMap and reveal the viewed map
 area/IP to that tile service, but do not contain names or addresses from the file.

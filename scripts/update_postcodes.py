@@ -3,7 +3,8 @@ import json
 from pathlib import Path
 from urllib.request import urlopen
 
-URL = "https://api.dataforsyningen.dk/postnumre"
+# Unclipped postcode areas include offshore territory and can center in the North Sea.
+URL = "https://api.dataforsyningen.dk/postnumre?landpostnumre=true"
 TARGET = Path(__file__).resolve().parents[1] / "frontend/src/data/postcodes.json"
 
 
