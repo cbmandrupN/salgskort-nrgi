@@ -1,0 +1,28 @@
+name: Backend checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -e ".[dev]"
+        working-directory: backend
+      - run: python -m pytest -q
+        working-directory: backend
+      - run: docker build -t salgskort-api ./backend
+      - name: Smoke test the demo container
+        run: |
+          docker run -d --name salgskort-api -p 8000:8000 salgskort-api
+          trap 'docker logs salgskort-api; docker rm -f salgskort-api' EXIT
+          curl --fail --retry 12 --retry-connrefused --retry-delay 2 http://localhost:8000/health
+          curl --fail http://localhost:8000/api/cases > cases.json
+          python -c "import json; d=json.load(open('cases.json')); assert d['meta']['data_source']=='demo'; assert len(d['cases'])==5"

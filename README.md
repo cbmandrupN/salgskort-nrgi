@@ -2,6 +2,103 @@
 
 Map-first dashboard for Danish sales and project cases. The frontend is a static React/Vite app suitable for GitHub Pages; the backend is a small FastAPI service that owns all Microsoft Graph credentials and live workbook access.
 
+## Share the map
+
+The map is deployed at **https://cbmandrupn.github.io/salgskort-nrgi/**.
+This is the app URL, not a source repository link. Colleagues do not need repository access.
+The Pages workflow defaults to `VITE_DEMO_MODE=true`: only the fictional
+cases in `frontend/src/data/demo-cases.json` are shown, with approximate map positions.
+It does not call a backend or read SharePoint, and it is visibly labelled as a demo.
+Repository access is not needed to view the map.
+
+## Open Salgsliste.xlsx locally (no IT setup)
+
+1. Open the map and select **Åbn Excel-fil**.
+2. Choose your local `Salgsliste.xlsx` with the **Opgaver** worksheet.
+3. Filter by advisor, department or progress, search cases, and click a map group
+   or case to inspect it. **Luk fil** removes the dataset from the displayed app.
+   Refreshing/closing the browser tab also clears it.
+
+The workbook is read **in the browser**, not uploaded to GitHub or the backend.
+There is no localStorage/sessionStorage persistence or analytics. Every colleague
+opens their own copy; sharing the website URL does not share the loaded workbook.
+Do not commit the workbook, screenshots of customer data or extracted case records.
+
+### Mapping and placement
+
+`frontend/src/lib/workbook.ts` explicitly maps the actual `Opgaver` columns:
+`Virksomhed`, `Adresse (Besigtiget)`, `Post nr.`, `Afdeling`, `Rådgiver`,
+`Projekt nr.`, `Salgsdato`, `Beløb`, `Produkt type` and progress/billing flags.
+Contact names, CVR, telephone numbers, email addresses and free-text comments are
+not copied into the app's case records.
+
+Progress precedence is **Lukket i BC → Fuldført → Delvist færdig → Rapport sendt →
+I gang (oprettet i BC) → Ny**. Billing is shown separately, not treated as completion.
+The details panel names the source flag behind the derived status. Unknown flags,
+bad amounts and missing/conflicting postcodes are reported with the Excel row number.
+Duplicate project numbers remain separate cases.
+
+The attached workbook's structure includes month-only template rows. They are
+excluded from case counts, with the number explicitly shown in the UI. Rows with
+case data are retained even when they cannot be placed. Missing/renamed worksheets
+or required columns are errors; the importer never silently switches to a pivot.
+Files are limited to 10 MB and worksheets to 5,000 rows.
+
+**Placements are approximate postcode centers, not street geocoding.** The entire
+public Danish postcode lookup is bundled in `frontend/src/data/postcodes.json`;
+no customer addresses are sent to a geocoding service. Cases in the same postcode
+share a counted marker; select it to see all its cases. The complete list remains
+available for keyboard users and unplaced cases.
+
+The lookup was generated from [DAWA/Dataforsyningen postcodes](https://api.dataforsyningen.dk/postnumre)
+on 2026-09-11 (1,089 entries with visual centers). Refresh only the public lookup
+using `python scripts/update_postcodes.py`; that script never takes workbook input.
+Background map tiles are requested from OpenStreetMap and reveal the viewed map
+area/IP to that tile service, but do not contain names or addresses from the file.
+Respect [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
+Private/screenshared screens can still expose the displayed workbook contents.
+
+### Automatic refresh without a new IT integration (proposed next step)
+
+The manual import above is implemented. Automatic refresh is **not yet implemented**.
+The practical route is to reuse the user's existing SharePoint access:
+
+1. In the SharePoint document library, add a OneDrive shortcut or use **Sync**.
+   Make `Salgsliste.xlsx` available locally with the OneDrive desktop client.
+   This requires existing file access and an organization policy permitting sync.
+2. Add a separate **Connect synced file** action in Edge/Chrome on HTTPS, using
+   `showOpenFilePicker()` with read-only access to the selected file.
+3. While the map is open, call the handle's `getFile()` periodically (e.g. 60 seconds)
+   and re-import when `lastModified` or size changes. Keep the last valid dataset
+   and show an explicit stale/error warning if OneDrive is saving, permission is
+   revoked or a replacement file invalidates the handle. Also check on tab focus.
+4. After reload, ask the user to reconnect/re-authorize as needed. Do not assume
+   persistent file permission or store workbook contents in browser storage.
+
+OneDrive handles SharePoint synchronization under the user's existing login;
+the map never needs Graph credentials or a new Entra app. Browser access still
+requires the user's explicit file selection. The tab/PC must be running;
+background tabs can be throttled, so this is **not an unattended 24/7 server sync**.
+If the company blocks OneDrive sync or browser file access, this route cannot
+bypass that policy. Other browsers retain the manual import path.
+
+References: [Microsoft: SharePoint/OneDrive sync](https://learn.microsoft.com/en-us/sharepoint/sharepoint-sync)
+and [Chrome: File System Access API](https://developer.chrome.com/docs/capabilities/web-apis/file-system-access).
+
+For local frontend-only preview, copy `frontend/.env.example` to `frontend/.env`
+and run `npm run dev` inside `frontend`. For live mode, explicitly set
+`VITE_DEMO_MODE=false` and `VITE_API_BASE_URL` to the authenticated backend.
+Missing configuration and API failures show errors; they never select demo data.
+
+## SharePoint activation
+
+SharePoint is optional and **not provisioned yet**; local import works without it.
+See [AZURE_SETUP.md](AZURE_SETUP.md)
+for the copy-paste request to NRGi IT and the exact site/file identifiers.
+`backend/Dockerfile` provides a non-root, demo-by-default backend image.
+Live data must remain disabled until the host enforces employee authentication
+and IT has granted the Graph application's site-specific read permission.
+
 ## Local development
 
 ```powershell
@@ -28,7 +125,7 @@ Copy `.env.example` files and configure the backend with `SALGSKORT_GRAPH_TENANT
 
 ## Deployment and privacy
 
-`.github/workflows/frontend-pages.yml` builds `frontend` and deploys it to GitHub Pages. Host the backend separately (Azure Container Apps, Azure App Service, Fly.io, or equivalent), set `SALGSKORT_CORS_ALLOW_ORIGINS` to the exact Pages origin, and set `VITE_API_BASE_URL` to the backend URL during the frontend build. Store Graph secrets only in the backend host's secret store. Review SharePoint data minimisation, retention and access controls before importing customer information. Dataforsyningen and Nominatim have their own usage/attribution terms; configure a commercial provider if those terms do not fit expected traffic.
+`.github/workflows/frontend-pages.yml` builds the public demo and deploys it to GitHub Pages. Pages must be enabled with **GitHub Actions** as its build source. For live deployment, host the backend separately (Azure Container Apps, Azure App Service, Fly.io, or equivalent), set `SALGSKORT_CORS_ALLOW_ORIGINS` to the exact Pages origin, and set `VITE_API_BASE_URL` to the backend URL during a live frontend build. Protect the live API with organizational authentication and authorization before connecting customer data: CORS is not access control and the current API has no user authentication. Store Graph secrets only in the backend host's secret store. Review SharePoint data minimisation, retention and access controls before importing customer information. Dataforsyningen and Nominatim have their own usage/attribution terms; configure a commercial provider if those terms do not fit expected traffic.
 
 ## Integration inputs still needed
 

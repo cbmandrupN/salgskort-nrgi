@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import base64
 import time
+from urllib.parse import quote
 
 import httpx
 
@@ -82,11 +83,15 @@ class GraphWorkbookClient:
             path = s.graph_drive_item_path.strip("/")
             url = (
                 f"https://graph.microsoft.com/v1.0/sites/{s.graph_site_id}"
-                f"/drive/root:/{path}:/content"
+                f"/drive/root:/{quote(path, safe='/')}:/content"
             )
             label = path
         try:
-            resp = await self._client.get(url, headers={"Authorization": f"Bearer {token}"})
+            # Graph /content redirects to a signed download URL. httpx removes
+            # Authorization when following a redirect to a different origin.
+            resp = await self._client.get(
+                url, headers={"Authorization": f"Bearer {token}"}, follow_redirects=True
+            )
         except httpx.HTTPError as exc:
             raise GraphDownloadError(f"Kunne ikke hente regneark fra Graph: {exc}") from exc
 
