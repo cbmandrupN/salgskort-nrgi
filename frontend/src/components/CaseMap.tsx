@@ -26,6 +26,7 @@ function FitBounds({ cases }: { cases: Case[] }) {
 
 export function CaseMap({ cases, onAreaClick }: { cases: Case[]; onAreaClick: (key: string) => void }) {
   const [tileError, setTileError] = useState(false)
+  const [mapStyle, setMapStyle] = useState('quiet')
   const groups = useMemo(() => {
     const locations = new Map<string, { latitude: number; longitude: number; count: number; label: string }>()
     for (const c of cases.filter(hasPosition)) {
@@ -39,7 +40,7 @@ export function CaseMap({ cases, onAreaClick }: { cases: Case[]; onAreaClick: (k
     }
     return [...locations.entries()]
   }, [cases])
-  return <>
+  return <div className={`map-surface${mapStyle === 'quiet' ? ' map-surface--quiet' : ''}`}>
     <MapContainer center={[56.1, 10.3]} zoom={7} scrollWheelZoom={false}>
       <TileLayer url={import.meta.env.VITE_MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -52,6 +53,13 @@ export function CaseMap({ cases, onAreaClick }: { cases: Case[]; onAreaClick: (k
         <Tooltip permanent direction="center" className="cluster-label"><span title={`${group.label}: ${group.count} sager`}>{group.count}</span></Tooltip>
       </CircleMarker>)}
     </MapContainer>
+    <label className="map-style-control">
+      <span>Baggrund</span>
+      <select aria-label="Baggrundskort" value={mapStyle} onChange={event => setMapStyle(event.target.value)}>
+        <option value="quiet">Afdæmpet</option>
+        <option value="standard">Standard</option>
+      </select>
+    </label>
     {tileError && <p className="tile-warning" role="status">Baggrundskortet kunne ikke hentes fuldt. Sagerne kan stadig ses i listen.</p>}
-  </>
+  </div>
 }

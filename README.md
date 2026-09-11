@@ -70,6 +70,12 @@ area/IP to that tile service, but do not contain names or addresses from the fil
 Respect [OpenStreetMap tile usage policy](https://operations.osmfoundation.org/policies/tiles/).
 Private/screenshared screens can still expose the displayed workbook contents.
 
+The background defaults to **Afdæmpet**: the existing OpenStreetMap tiles are
+desaturated, softened and lightened locally. Only the background tile pane is
+filtered; case markers, counts, controls and attribution retain their original
+contrast. Use **Baggrund → Standard** on the map to restore the unmodified colors.
+This does not change the tile provider, coordinates or data handling.
+
 ### Automatic refresh without a new IT integration (proposed next step)
 
 The manual import above is implemented. Automatic refresh is **not yet implemented**.
