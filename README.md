@@ -11,6 +11,66 @@ cases in `frontend/src/data/demo-cases.json` are shown when no local import is s
 It does not call a backend or read SharePoint, and it is visibly labelled as a demo.
 Repository access is not needed to view the map.
 
+## Shared team mode: one import for everyone
+
+**Implemented, but not activated on the public site yet.** A separately hosted,
+HTTPS-protected backend with persistent storage is required. GitHub Pages alone
+cannot keep a private shared dataset. Until the configuration below is completed,
+the published site remains explicitly local/demo and colleagues must import their
+own file. Do not solve this by committing a workbook or customer JSON to GitHub.
+
+When activated, everyone opens the same Pages URL and enters the team's access
+code. **Del ny Excel-fil** reads the workbook in the browser and sends only the
+mapped **Bygninger** cases/issues to the protected API, replacing its latest copy.
+No raw workbook, contact columns or other departments are sent. All colleagues
+see that copy on login; already-open tabs use **Hent seneste** to refresh.
+If someone has published a newer version since your last read, your upload is
+rejected rather than overwriting theirs. Fetch and review the latest copy first.
+
+Shared mode never uses demo data or the browser's saved local import as a
+fallback. The access code and retrieved cases remain only in tab memory; refresh
+or **Log ud** requires login again. Logging out does not delete the team's data.
+Local-mode saved imports remain separate and are neither migrated nor shared
+automatically. Open the original XLSX explicitly to publish it.
+
+### Activation (no Graph or SharePoint app registration)
+
+1. Use an **NRGi-approved hosting account** that supports the backend Docker image,
+   HTTPS, server secrets and a persistent disk. The hosting provider must be
+   permitted to hold these customer records; no provider/account has been created.
+2. Set a strong, randomly generated server secret `SALGSKORT_SHARED_ACCESS_CODE`
+   (at least 24 characters), a persistent `SALGSKORT_SHARED_DATABASE_PATH`, and
+   `SALGSKORT_CORS_ALLOW_ORIGINS=https://cbmandrupn.github.io`.
+   Keep `SALGSKORT_DATA_SOURCE=demo` unless separately configuring Graph; shared
+   uploads use their own protected endpoints and do not enter `/api/cases`.
+3. Set repository **variables** `VITE_API_BASE_URL` to that backend's HTTPS base URL,
+   `VITE_SHARED_MODE=true`, and `VITE_DEMO_MODE=false`; rerun the Pages workflow.
+   **Never put the access code in a VITE variable, git file or public URL.**
+4. Distribute the site URL and access code through an approved private channel.
+   Import a file once using **Del ny Excel-fil**. Confirm from a second browser
+   that the same shared version appears without uploading again.
+
+The team code uses HTTP Basic authentication (fixed username `nrgi`) over HTTPS;
+it is sent in an Authorization header, not a URL or cookie. All code holders
+can read and replace the shared dataset. This is **team-level access**, not
+individual employee identity, MFA or an audit trail. Rotate the code to revoke
+access, and use organizational SSO instead if individual revocation/auditing is
+required. Existing authorized tabs may still contain the previously read data.
+Configure edge/proxy rate limiting and prevent Authorization headers and request
+bodies from being logged. Run Uvicorn with `--no-proxy-headers` (as in the Docker
+image) so clients cannot forge the peer IP used by the in-process rate limiter.
+CORS is not the authentication boundary.
+
+The backend keeps one latest SQLite snapshot on its persistent disk. Do not run
+independent replicas with separate disks: they would serve different copies.
+Restrict volume/backup access, configure encryption at rest with your host, define
+backup/retention rules, and securely remove the volume/backups when retiring the
+service. An ephemeral container filesystem is not sufficient.
+
+**Remaining integration inputs:** an approved backend host/persistent volume,
+its HTTPS URL, and the privately configured team access code. They cannot be
+inferred from the SharePoint link or the GitHub repository.
+
 ## Open Salgsliste.xlsx locally (no IT setup)
 
 1. Download the latest `Salgsliste.xlsx` from SharePoint, open the map and select **Åbn Excel-fil**.

@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.routers.shared import router as shared_router
 from app.schemas.cases import CasesResponse, HealthResponse
 from app.services.pipeline import PipelineError, load_cases
 
@@ -13,9 +14,19 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
     allow_credentials=False,
-    allow_methods=["GET"],
-    allow_headers=["*"],
+    allow_methods=["GET", "PUT", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type"],
 )
+app.include_router(shared_router)
+
+
+@app.middleware("http")
+async def shared_cache_control(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/api/shared/"):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.get("/health", response_model=HealthResponse)

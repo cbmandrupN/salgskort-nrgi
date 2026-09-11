@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     )
     sync_cache_ttl_seconds: int = Field(default=60 * 15, description="How long a fetched+parsed dataset is cached in memory")
 
+    # --- Shared manual import (independent of Graph/demo) ---
+    shared_access_code: str = Field(default="", repr=False)
+    shared_database_path: str = Field(default="")
+
     # --- CORS ---
     cors_allow_origins: str = Field(
         default="http://localhost:5173",

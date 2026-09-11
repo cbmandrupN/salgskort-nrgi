@@ -32,6 +32,8 @@ jobs:
           # VITE_API_BASE_URL repo variable is configured for a deployed backend;
           # set VITE_DEMO_MODE=false as a repo variable once that exists.
           VITE_DEMO_MODE: ${{ vars.VITE_DEMO_MODE || 'true' }}
+          # Enable only after deploying/configuring the protected shared backend.
+          VITE_SHARED_MODE: ${{ vars.VITE_SHARED_MODE || 'false' }}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: frontend/dist}

@@ -9,6 +9,9 @@ import { advisorNames, buildingAdvisors, caseAdvisors, hasAdvisor, MISSING_ADVIS
 import { hasPosition, locationKey } from './lib/map-groups'
 import { readWorkbookFile } from './lib/read-workbook-file'
 import { loadSavedImport, removeSavedImport, saveImport } from './lib/saved-import'
+import { SharedLogin } from './components/SharedLogin'
+import { fetchSharedSnapshot, publishSharedSnapshot } from './lib/shared-api'
+import type { SharedSession } from './lib/shared-api'
 
 const statusLabels: Record<CaseStatus, string> = {
   ny: 'Ny', i_gang: 'I gang', tilbud_sendt: 'Tilbud sendt', vundet: 'Vundet',
@@ -19,6 +22,14 @@ const currency = new Intl.NumberFormat('da-DK', { style: 'currency', currency: '
 const dateTime = new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium', timeStyle: 'short' })
 
 export default function App() {
+  const [session, setSession] = useState<SharedSession | null>(null)
+  if (import.meta.env.VITE_SHARED_MODE === 'true') {
+    return session ? <Dashboard sharedSession={session} onSignOut={() => setSession(null)} /> : <SharedLogin onLogin={setSession} />
+  }
+  return <Dashboard />
+}
+
+function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession; onSignOut?: () => void }) {
   const [data, setData] = useState<ApiResponse | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -34,8 +45,17 @@ export default function App() {
   const [unresolvedOnly, setUnresolvedOnly] = useState(false)
   const [area, setArea] = useState('')
   const revision = useRef(0)
+  const sharedRevision = useRef(0)
+  const shared = Boolean(sharedSession)
 
   useEffect(() => {
+    if (sharedSession) {
+      setData(sharedSession.snapshot.data)
+      setFileName(sharedSession.snapshot.file_name || '')
+      sharedRevision.current = sharedSession.snapshot.revision
+      setLoading(false)
+      return
+    }
     let active = true
     const current = revision.current
     loadSavedImport().catch(reason => {
@@ -56,7 +76,7 @@ export default function App() {
       if (active && current === revision.current) setLoading(false)
     })
     return () => { active = false }
-  }, [])
+  }, [sharedSession])
 
   function resetFilters() {
     setSearch(''); setAdvisor(''); setDepartment(DEFAULT_DEPARTMENT); setStatus('')
@@ -73,20 +93,39 @@ export default function App() {
     setError('')
     try {
       const result = await readWorkbookFile(file)
-      try {
-        await saveImport(file.name, result)
-      } catch (reason) {
-        throw new Error(`Filen kunne ikke gemmes i browseren. ${reason instanceof Error ? reason.message : 'Kontrollér browserens lagerplads og tilladelse til at gemme webstedsdata.'}`)
+      if (sharedSession) {
+        const snapshot = await publishSharedSnapshot(sharedSession.accessCode, sharedRevision.current, file.name, result)
+        sharedRevision.current = snapshot.revision
+        setData(snapshot.data)
+        setFileName(snapshot.file_name)
+      } else {
+        try {
+          await saveImport(file.name, result)
+        } catch (reason) {
+          throw new Error(`Filen kunne ikke gemmes i browseren. ${reason instanceof Error ? reason.message : 'Kontrollér browserens lagerplads og tilladelse til at gemme webstedsdata.'}`)
+        }
+        setData(result)
+        setFileName(file.name)
       }
-      setData(result)
-      setFileName(file.name)
       setRestoreFailed(false)
       resetFilters()
     } catch (reason) {
-      setError(`${reason instanceof Error ? reason.message : 'Filen kunne ikke indlæses.'} Den nye fil er ikke indlæst. Den tidligere kopi er uændret. Vælg filen igen for at prøve på ny.`)
+      setError(`${reason instanceof Error ? reason.message : 'Filen kunne ikke indlæses.'} ${shared ? 'Den viste kopi er ikke opdateret. Hent seneste for at kontrollere den fælles version.' : 'Den nye fil er ikke indlæst. Den tidligere kopi er uændret. Vælg filen igen for at prøve på ny.'}`)
     } finally {
       setImporting(false)
     }
+  }
+
+  async function refreshShared() {
+    if (!sharedSession) return
+    setLoading(true); setError('')
+    try {
+      const snapshot = await fetchSharedSnapshot(sharedSession.accessCode)
+      sharedRevision.current = snapshot.revision
+      setData(snapshot.data); setFileName(snapshot.file_name || ''); resetFilters()
+    } catch (reason) {
+      setError(`${reason instanceof Error ? reason.message : 'Det fælles kort kunne ikke hentes.'} Den viste kopi er ikke opdateret.`)
+    } finally { setLoading(false) }
   }
 
   async function closeFile() {
@@ -142,34 +181,43 @@ export default function App() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#overview" aria-label="Salgskort, overblik"><strong>NRGi</strong><span>Salgskort</span></a>
-      <span className="source-pill">{local ? 'LOKAL EXCEL' : demo ? 'DEMO' : data ? 'LIVE DATA' : 'INGEN DATA'}</span>
+      <div className="session-actions">
+        <span className="source-pill">{shared ? 'FÆLLES EXCEL' : local ? 'LOKAL EXCEL' : demo ? 'DEMO' : data ? 'LIVE DATA' : 'INGEN DATA'}</span>
+        {shared && <button className="sign-out" disabled={importing || loading} onClick={onSignOut}>Log ud</button>}
+      </div>
     </header>
 
     <section className="intro" id="overview">
       <div><h1>Sager i Danmark</h1><p>Overblik til rådgivere i Bygninger. Vælg rådgiver for at finde dine sager.</p></div>
-      {data && <p className="sync">{local ? 'Indlæst lokalt' : demo ? 'Eksempeldata fra' : 'Sidst synkroniseret'}<br/>
+      {data && <p className="sync">{shared ? `Fælles kopi · version ${sharedRevision.current}` : local ? 'Indlæst lokalt' : demo ? 'Eksempeldata fra' : 'Sidst synkroniseret'}<br/>
         <strong>{dateTime.format(new Date(data.meta.fetched_at))}</strong></p>}
     </section>
 
     <section className="import-bar" aria-label="Indlæs dit salgsark">
       <div className="import-copy">
         <strong>{fileName || 'Åbn den seneste Salgsliste.xlsx'}</strong>
-        <p>{local ? 'Gemt i denne browser og klar næste gang. Vælg Skift Excel-fil, når du har en nyere version.' : 'Download den seneste fil fra SharePoint, og åbn den her. Sagerne gemmes kun i denne browser.'}</p>
-        <p>Ikke delt med kolleger. Brug kun din egen browserprofil på en betroet computer.</p>
+        {shared ? <>
+          <p>Del en ny fil for at erstatte teamets fælles kopi. Kun Bygninger-sager deles; den oprindelige Excel-fil sendes ikke.</p>
+          <p>Kolleger åbner samme link med teamets adgangskode. Hent seneste for at se en kollegas nye import.</p>
+        </> : <>
+          <p>{local ? 'Gemt i denne browser og klar næste gang. Vælg Skift Excel-fil, når du har en nyere version.' : 'Download den seneste fil fra SharePoint, og åbn den her. Sagerne gemmes kun i denne browser.'}</p>
+          <p>Ikke delt med kolleger. Fælles deling er ikke tilsluttet på denne udgave af siden.</p>
+        </>}
       </div>
-      <label className={`file-button${importing || removing ? ' disabled' : ''}`}>
+      <label className={`file-button${importing || removing || (shared && loading) ? ' disabled' : ''}`}>
         <input className="visually-hidden" type="file" accept=".xlsx" aria-label="Åbn Excel-fil"
-          disabled={importing || removing} onChange={onFileChange} />
-        {importing ? 'Indlæser…' : local ? 'Skift Excel-fil' : 'Åbn Excel-fil'}
+          disabled={importing || removing || (shared && loading)} onChange={onFileChange} />
+        {importing ? shared ? 'Deler…' : 'Indlæser…' : shared ? 'Del ny Excel-fil' : local ? 'Skift Excel-fil' : 'Åbn Excel-fil'}
       </label>
-      {(local || restoreFailed) && <button className="secondary-button" disabled={importing || loading} onClick={closeFile}>Fjern gemt fil</button>}
+      {shared ? <button className="secondary-button" disabled={importing || loading} onClick={refreshShared}>Hent seneste</button>
+        : (local || restoreFailed) && <button className="secondary-button" disabled={importing || loading} onClick={closeFile}>Fjern gemt fil</button>}
     </section>
 
     {error && <section className="error-banner" role="alert"><strong>Data kunne ikke opdateres</strong><p>{error}</p></section>}
     {(loading || importing) && <section className="loading-state" role="status" aria-live="polite">
-      <div className="skeleton" /><p>{importing ? 'Læser og gemmer Excel-sagerne i denne browser…' : 'Henter oversigten…'}</p>
+      <div className="skeleton" /><p>{importing ? shared ? 'Læser Excel og deler Bygninger-sagerne med teamet…' : 'Læser og gemmer Excel-sagerne i denne browser…' : 'Henter oversigten…'}</p>
     </section>}
-    {!data && !loading && !importing && <section className="empty-state"><h2>Åbn dit salgsark for at komme i gang</h2><p>Vælg en .xlsx-fil med fanen Opgaver. Sagerne bliver kun i din browser.</p></section>}
+    {!data && !loading && !importing && <section className="empty-state"><h2>{shared ? 'Ingen fælles sager endnu' : 'Åbn dit salgsark for at komme i gang'}</h2><p>{shared ? 'Vælg Del ny Excel-fil. Bygninger-sagerne bliver derefter tilgængelige for alle med adgang til kortet.' : 'Vælg en .xlsx-fil med fanen Opgaver. Sagerne bliver kun i din browser.'}</p></section>}
 
     {data && <>
       <p className="data-notice">{local
@@ -242,7 +290,7 @@ export default function App() {
           </details>}
         </aside>
       </section>
-      <footer className="footnote">Excel-import: gemt lokalt i denne browser · Ingen kundeoplysninger sendes til geokodning · Baggrundskort: OpenStreetMap · Postnummercentre: DAWA/Dataforsyningen</footer>
+      <footer className="footnote">{shared ? 'Bygninger-sager: fælles, adgangsbeskyttet backend' : 'Excel-import: gemt lokalt i denne browser'} · Ingen kundeoplysninger sendes til geokodning · Baggrundskort: OpenStreetMap · Postnummercentre: DAWA/Dataforsyningen</footer>
     </>}
   </main>
 }

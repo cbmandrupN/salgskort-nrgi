@@ -11,6 +11,15 @@ button:disabled { cursor: wait; opacity: .6; }
 .brand strong { font-size: 24px; }
 .brand span { color: #cae2e9; font-size: 16px; }
 .source-pill { font-size: 12px; font-weight: 600; letter-spacing: .05em; border: 1px solid #8cbbc8; border-radius: 4px; padding: 5px 9px; white-space: nowrap; }
+.session-actions { display: flex; align-items: center; gap: 12px; }
+.sign-out { min-height: 44px; padding: 8px 12px; border: 1px solid #8cbbc8; border-radius: 4px; color: white; background: transparent; }
+.sign-out:hover { background: #15546b; }
+.shared-login { max-width: 660px; margin: 0 auto; padding: 48px 24px; }
+.shared-login p { color: #4d6572; line-height: 1.6; }
+.shared-login form { display: grid; gap: 10px; margin: 28px 0; }
+.shared-login input { width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #a9bec7; border-radius: 4px; color: #123047; background: white; font-size: 16px; }
+.shared-login form p { margin: 0 0 8px; font-size: 14px; }
+.shared-login .login-error { padding: 12px 16px; border: 1px solid #d89b92; border-radius: 4px; background: #fff0ee; color: #872e20; }
 .advisor-bar { padding: 16px 4vw; background: white; border-bottom: 1px solid #d4e0e4; }
 .advisor-bar-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 18px; margin-bottom: 12px; }
 .advisor-bar h2 { margin: 0; font-size: 16px; }

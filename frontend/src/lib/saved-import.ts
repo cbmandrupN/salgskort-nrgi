@@ -40,7 +40,7 @@ function validIssue(value: unknown): value is RowIssue {
     typeof value.message === 'string' && (value.field === undefined || typeof value.field === 'string')
 }
 
-function validImport(value: unknown): value is SavedImport {
+export function isSavedImport(value: unknown): value is SavedImport {
   if (!record(value) || value.version !== 1 || typeof value.fileName !== 'string' ||
     !record(value.data) || !record(value.data.meta)) return false
   const { meta, cases, issues } = value.data
@@ -93,13 +93,13 @@ async function transact<T>(mode: IDBTransactionMode, operation: (store: IDBObjec
 export async function loadSavedImport(): Promise<SavedImport | null> {
   const saved = await transact('readonly', store => store.get(KEY))
   if (saved === undefined) return null
-  if (!validImport(saved)) throw new Error('Den gemte kopi har et ukendt eller beskadiget format.')
+  if (!isSavedImport(saved)) throw new Error('Den gemte kopi har et ukendt eller beskadiget format.')
   return saved
 }
 
 export async function saveImport(fileName: string, data: ApiResponse): Promise<void> {
   const saved = { version: 1, fileName, data }
-  if (!validImport(saved)) throw new Error('Kun en gyldig lokal Excel-import kan gemmes.')
+  if (!isSavedImport(saved)) throw new Error('Kun en gyldig lokal Excel-import kan gemmes.')
   await transact('readwrite', store => store.put(saved, KEY))
 }
 
