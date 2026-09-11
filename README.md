@@ -120,6 +120,8 @@ desaturated, softened and lightened locally. Only the background tile pane is
 filtered; case markers, counts, controls and attribution retain their original
 contrast. Use **Baggrund → Standard** on the map to restore the unmodified colors.
 This does not change the tile provider, coordinates or data handling.
+Scroll the mouse wheel over the map to zoom in or out. Outside the map, the wheel
+scrolls the page or case list normally. The map's +/− buttons remain available.
 
 For local frontend-only preview, copy `frontend/.env.example` to `frontend/.env`
 and run `npm run dev` inside `frontend`. For live mode, explicitly set
