@@ -35,7 +35,8 @@ view, not access control. A successful new import resets the filters and closes
 details/map-group selection because Excel row numbers can change.
 Filters are not saved; reopening the site starts with the Bygninger overview.
 
-The top advisor bar replaces the advisor dropdown and lists **only Bygninger
+The advisor bar sits below the search/filters, directly above the map. It replaces
+the advisor dropdown and lists **only Bygninger
 advisors**, including its regional departments. Names come from the imported cases;
 **Casper Bøvling is always included and always pink**, with 0 cases if absent.
 Each named advisor has a distinct color. Names are matched ignoring case,

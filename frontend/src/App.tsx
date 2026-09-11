@@ -144,8 +144,6 @@ export default function App() {
       <a className="brand" href="#overview" aria-label="Salgskort, overblik"><strong>NRGi</strong><span>Salgskort</span></a>
       <span className="source-pill">{local ? 'LOKAL EXCEL' : demo ? 'DEMO' : data ? 'LIVE DATA' : 'INGEN DATA'}</span>
     </header>
-    {data && <AdvisorBar advisors={advisors} selected={department === DEFAULT_DEPARTMENT ? advisor : null}
-      total={buildings.length} missing={missingAdvisors} onSelect={selectAdvisor} />}
 
     <section className="intro" id="overview">
       <div><h1>Sager i Danmark</h1><p>Overblik til rådgivere i Bygninger. Vælg rådgiver for at finde dine sager.</p></div>
@@ -203,6 +201,8 @@ export default function App() {
         {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
         <span>{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
       </div>
+      <AdvisorBar advisors={advisors} selected={department === DEFAULT_DEPARTMENT ? advisor : null}
+        total={buildings.length} missing={missingAdvisors} onSelect={selectAdvisor} />
       <section className="workspace">
         <div className="map-wrap" aria-label="Kort over sager">
           <CaseMap cases={filtered} advisors={advisors} onAreaClick={key => { setArea(key); setSelected(null) }} />
