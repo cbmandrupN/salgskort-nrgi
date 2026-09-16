@@ -56,6 +56,23 @@ def test_auth_fails_closed(client, monkeypatch, code):
         assert "no-store" in response.headers["cache-control"]
 
 
+def test_sale_month_and_completed_roundtrip(client, payload):
+    payload["data"]["cases"][0].update(sales_month="2026-02", completed=False, status="lukket")
+    assert client.put(URL, headers=AUTH, json=payload).status_code == 200
+    saved = client.get(URL, headers=AUTH).json()["data"]["cases"][0]
+    assert saved["sales_month"] == "2026-02"
+    assert saved["completed"] is False
+    assert saved["status"] == "lukket"
+
+
+@pytest.mark.parametrize("fields", [
+    {"sales_month": "2026-13"}, {"sales_month": "februar"}, {"completed": "Nej"},
+])
+def test_rejects_invalid_sale_filter_fields(client, payload, fields):
+    payload["data"]["cases"][0].update(fields)
+    assert client.put(URL, headers=AUTH, json=payload).status_code == 422
+
+
 @pytest.mark.parametrize("header", [
     "", "Bearer token", "Basic !!!", "Basic bm8tY29sb24=", "Basic /w==",
     "Basic " + base64.b64encode(b"other:" + CODE.encode()).decode(),

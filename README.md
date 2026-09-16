@@ -98,6 +98,24 @@ view, not access control. A successful new import resets the filters and closes
 details/map-group selection because Excel row numbers can change.
 Filters are not saved; reopening the site starts with the Bygninger overview.
 
+**Solgt i måned** filters by calendar month **and year**, using `Salgsdato`
+(Excel dates, serial dates, ISO dates or Danish day/month/year text), falling back
+to a cached `Salgsmåned` value in `YYYY-MM` format. It never uses a completion or
+closing date as the sale date. Month choices come from the whole imported dataset.
+Missing/invalid months remain visible under **Ikke angivet** with import issues.
+
+**Fuldført** reads the actual `Fuldført` column independently of derived status:
+**Ja** means `Ja`; **Nej** includes `Nej`, `Delvist` and a blank cell in an existing
+column (not marked complete). Unknown values, unreadable cells or a missing
+column are **Ikke angivet**, not guessed from `Lukket i BC`.
+Both filters combine with search, department, advisor, status and unplaced-only;
+**Nulstil**, successful import, removal and shared refresh clear both.
+Old saved snapshots are still readable: their sale month is derived from the
+saved sale date, and only unambiguous completed/partly-completed statuses provide
+a completion fallback. Reimport the XLSX to populate exact completion flags,
+especially for closed cases. New optional fields survive local and shared storage;
+the shared backend needs this compatible schema update before publishing new imports.
+
 The advisor bar sits below the search/filters, directly above the map. It replaces
 the advisor dropdown and lists **only Bygninger
 advisors**, including its regional departments. Names come from the imported cases;

@@ -76,6 +76,43 @@ describe('Opgaver mapping', () => {
     const { sheet } = fixture()
     expect(() => parseWorksheet(sheet)).toThrow('ingen sager')
   })
+
+  it('uses Salgsdato ahead of cached months and falls back only to a month with a year', () => {
+    const { sheet } = fixture()
+    sheet.addRow(row({ created_date: new Date('2026-01-31T00:00:00Z'), sales_month: '2025-12' }))
+    sheet.addRow(row({ created_date: '1/2/2026', sales_month: { formula: 'TEXT(B3,"yyyy-mm")' } }))
+    sheet.addRow(row({ sales_month: { formula: '"2025-11"', result: '2025-11' } }))
+    sheet.addRow(row({ created_date: '31/02/2026', sales_month: '2026-02' }))
+    sheet.addRow(row({ sales_month: 'januar' }))
+    const data = parseWorksheet(sheet)
+    expect(data.cases.map(c => c.sales_month)).toEqual(['2026-01', '2026-02', '2025-11', '2026-02', undefined])
+    expect(data.issues.some(i => i.row_number === 5 && i.field === 'created_date')).toBe(true)
+    expect(data.issues.some(i => i.row_number === 6 && i.field === 'sales_month')).toBe(true)
+    expect(data.issues.some(i => i.row_number === 3 && i.field === 'sales_month')).toBe(false)
+  })
+
+  it('reads raw serial dates in both workbook epochs', () => {
+    const { workbook, sheet } = fixture()
+    sheet.addRow(row({ created_date: 46025 }))
+    expect(parseWorksheet(sheet).cases[0].sales_month).toBe('2026-01')
+    workbook.properties.date1904 = true
+    sheet.getRow(2).getCell(2).value = 44563
+    expect(parseWorksheet(sheet).cases[0].sales_month).toBe('2026-01')
+  })
+
+  it('keeps the completed column independent of closed status, treating blank and partial as not marked complete', () => {
+    const { sheet } = fixture()
+    for (const completed of [' Ja ', 'Nej', 'Delvist', '', 'Ukendt', { formula: '"Ja"' }]) {
+      sheet.addRow(row({ completed, closed: 'Ja' }))
+    }
+    const data = parseWorksheet(sheet)
+    expect(data.cases.every(c => c.status === 'lukket')).toBe(true)
+    expect(data.cases.map(c => c.completed)).toEqual([true, false, false, false, undefined, undefined])
+    expect(data.issues.some(i => i.row_number === 6 && i.field === 'completed')).toBe(true)
+    expect(data.issues.some(i => i.row_number === 7 && i.field === 'completed' && i.severity === 'fejl')).toBe(true)
+    sheet.getRow(1).getCell(Object.keys(COLUMN_MAPPING).indexOf('completed') + 1).value = 'Fjernet'
+    expect(parseWorksheet(sheet).cases.every(c => c.completed === undefined)).toBe(true)
+  })
 })
 
 it('normalizes Danish postcodes and numbers without multiplying numeric Excel values', () => {

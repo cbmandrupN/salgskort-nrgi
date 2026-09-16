@@ -29,6 +29,16 @@ it('removes the saved copy, including when already empty', async () => {
   await removeSavedImport()
 })
 
+it('retains month and exact completion flags on restore without breaking legacy snapshots', async () => {
+  const updated = { ...data, cases: [{ ...data.cases[0], sales_month: '2026-02', completed: false }] }
+  await saveImport('Salgsliste.xlsx', updated)
+  expect((await loadSavedImport())?.data.cases[0]).toMatchObject({ sales_month: '2026-02', completed: false })
+  await expect(saveImport('bad.xlsx', { ...updated, cases: [{ ...updated.cases[0], sales_month: '2026-13' }] })).rejects.toThrow('gyldig')
+  expect((await loadSavedImport())?.data).toEqual(updated)
+  await saveImport('old.xlsx', data)
+  expect((await loadSavedImport())?.data).toEqual(data)
+})
+
 it('never persists demo data or invalid timestamps over the previous copy', async () => {
   await saveImport('Salgsliste.xlsx', data)
   for (const meta of [{ ...data.meta, data_source: 'demo' }, { ...data.meta, fetched_at: 'invalid' }]) {

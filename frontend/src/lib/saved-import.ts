@@ -1,4 +1,5 @@
 import type { ApiResponse, Case, RowIssue } from '../types/cases'
+import { isSalesMonth } from './sales-filters'
 
 const DATABASE = 'salgskort-nrgi-imports'
 const STORE = 'imports'
@@ -28,6 +29,8 @@ function validCase(value: unknown): value is Case {
     strings.every(key => value[key] === undefined || typeof value[key] === 'string') &&
     numbers.every(key => value[key] === undefined || finite(value[key])) &&
     (value.invoiced === undefined || typeof value.invoiced === 'boolean') &&
+    (value.completed === undefined || typeof value.completed === 'boolean') &&
+    (value.sales_month === undefined || (typeof value.sales_month === 'string' && isSalesMonth(value.sales_month))) &&
     (value.status === undefined || (typeof value.status === 'string' &&
       ['ny', 'i_gang', 'tilbud_sendt', 'vundet', 'tabt', 'afventer',
         'delvist_faerdig', 'rapport_sendt', 'fuldfoert', 'lukket'].includes(value.status))) &&

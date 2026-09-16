@@ -54,7 +54,8 @@ h1 { font-size: clamp(26px, 3vw, 34px); margin: 0; color: #073b55; letter-spacin
 .kpis article + article { border-left: 1px solid #d4e0e4; }
 .kpis span { display: block; color: #4d6572; font-size: 14px; }
 .kpis b { display: block; margin-top: 5px; font-size: 26px; font-variant-numeric: tabular-nums; color: #073b55; }
-.toolbar { display: flex; gap: 14px; padding: 18px 4vw; background: white; align-items: end; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 14px; padding: 18px 4vw; background: white; align-items: end; }
+.filter-help { margin: 0; padding: 0 4vw 12px; background: white; color: #4d6572; font-size: 14px; line-height: 1.5; }
 .toolbar label { display: grid; gap: 5px; min-width: 0; }
 .toolbar label > span { font-size: 13px; color: #4d6572; font-weight: 600; }
 .toolbar .search { flex: 1; min-width: 200px; }

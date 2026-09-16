@@ -38,6 +38,8 @@ class SharedCase(SharedModel):
     ] | None = None
     estimated_value_dkk: FiniteFloat | None = None
     created_date: Text | None = None
+    sales_month: Annotated[str, Field(pattern=r"^(?:19|20|21)\d{2}-(?:0[1-9]|1[0-2])$")] | None = None
+    completed: Annotated[bool, Field(strict=True)] | None = None
     latitude: Annotated[FiniteFloat, Field(ge=-90, le=90)] | None = None
     longitude: Annotated[FiniteFloat, Field(ge=-180, le=180)] | None = None
     geocode_status: Literal["ok", "delvis", "fejlet", "afventer"]

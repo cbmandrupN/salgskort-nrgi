@@ -1,6 +1,7 @@
 import type { CellValue, Worksheet } from 'exceljs'
 import type { ApiResponse, Case, CaseStatus, RowIssue } from '../types/cases'
 import postcodeData from '../data/postcodes.json'
+import { isSalesMonth, salesDateMonth } from './sales-filters'
 
 export const MAX_WORKBOOK_BYTES = 10 * 1024 * 1024
 const MAX_ROWS = 5000
@@ -123,6 +124,24 @@ export function parseWorksheet(sheet: Worksheet): ApiResponse {
       if (value && !allowed.includes(value)) addIssue(sourceRow, field, `Ukendt værdi i "${COLUMN_MAPPING[field]}"; ikke brugt i status.`)
     }
     const progress = statusFrom(values)
+    const monthFromDate = salesDateMonth(values.created_date || '', Boolean(sheet.workbook.properties.date1904))
+    if (values.created_date && !monthFromDate) addIssue(sourceRow, 'created_date', 'Salgsdatoen kunne ikke læses som en gyldig dato.')
+    let salesMonth = monthFromDate
+    if (!salesMonth && fields.sales_month) {
+      try {
+        const monthText = cellText(row.getCell(fields.sales_month).value)
+        if (isSalesMonth(monthText)) salesMonth = monthText
+        else if (monthText) addIssue(sourceRow, 'sales_month', 'Salgsmåned skal indeholde år og måned (ÅÅÅÅ-MM).')
+      } catch (error) {
+        addIssue(sourceRow, 'sales_month', error instanceof Error ? error.message : 'Salgsmåneden kunne ikke læses.', 'fejl')
+      }
+    }
+    if (!salesMonth) addIssue(sourceRow, 'sales_month', 'Salgsmåned mangler; sagen vises under Ikke angivet.')
+    const completionText = normalized(values.completed || '')
+    const completionReadError = issues.some(issue => issue.row_number === sourceRow && issue.field === 'completed' && issue.severity === 'fejl')
+    const completed = fields.completed && !completionReadError
+      ? completionText === 'ja' ? true : ['', 'nej', 'delvist'].includes(completionText) ? false : undefined
+      : undefined
     cases.push({
       id: `excel-row-${sourceRow}`, source_row: sourceRow,
       case_number: values.case_number || undefined,
@@ -135,6 +154,7 @@ export function parseWorksheet(sheet: Worksheet): ApiResponse {
       status: progress.status, status_basis: progress.basis,
       estimated_value_dkk: amount, product_type: values.product_type || undefined,
       created_date: values.created_date || undefined,
+      sales_month: salesMonth, completed,
       invoiced: normalized(values.invoiced || '') === 'ja' ? true : normalized(values.invoiced || '') === 'nej' ? false : undefined,
     })
   })

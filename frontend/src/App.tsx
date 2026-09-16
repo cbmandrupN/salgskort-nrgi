@@ -12,6 +12,7 @@ import { loadSavedImport, removeSavedImport, saveImport } from './lib/saved-impo
 import { SharedLogin } from './components/SharedLogin'
 import { fetchSharedSnapshot, publishSharedSnapshot } from './lib/shared-api'
 import type { SharedSession } from './lib/shared-api'
+import { caseCompleted, caseSalesMonth, matchesSalesFilters, salesMonthLabel, salesMonthOptions } from './lib/sales-filters'
 
 const statusLabels: Record<CaseStatus, string> = {
   ny: 'Ny', i_gang: 'I gang', tilbud_sendt: 'Tilbud sendt', vundet: 'Vundet',
@@ -42,6 +43,8 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   const [advisor, setAdvisor] = useState('')
   const [department, setDepartment] = useState(DEFAULT_DEPARTMENT)
   const [status, setStatus] = useState('')
+  const [salesMonth, setSalesMonth] = useState('')
+  const [completed, setCompleted] = useState('')
   const [unresolvedOnly, setUnresolvedOnly] = useState(false)
   const [area, setArea] = useState('')
   const revision = useRef(0)
@@ -80,6 +83,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
 
   function resetFilters() {
     setSearch(''); setAdvisor(''); setDepartment(DEFAULT_DEPARTMENT); setStatus('')
+    setSalesMonth(''); setCompleted('')
     setUnresolvedOnly(false); setArea(''); setSelected(null)
   }
 
@@ -167,13 +171,16 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
     return departmentCases.filter(c =>
       (!needle || [c.customer_name, c.address_raw, c.case_number, c.postal_code].join(' ').toLocaleLowerCase('da-DK').includes(needle)) &&
       (!advisor || (advisor === MISSING_ADVISOR ? !advisorNames(c.advisor).length : hasAdvisor(c, advisor))) &&
-      (!status || c.status === status) && (!unresolvedOnly || !hasPosition(c))
+      (!status || c.status === status) && (!unresolvedOnly || !hasPosition(c)) &&
+      matchesSalesFilters(c, salesMonth, completed)
     )
-  }, [departmentCases, search, advisor, status, unresolvedOnly])
+  }, [departmentCases, search, advisor, status, unresolvedOnly, salesMonth, completed])
   const visible = area ? filtered.filter(c => locationKey(c) === area) : filtered
   const detail = selected && visible.some(c => c.id === selected.id) ? selected : null
   const departments = [...new Set(data?.cases.flatMap(c => c.department ? [c.department] : []))].sort((a, b) => a.localeCompare(b, 'da'))
   const availableStatuses = [...new Set(departmentCases.flatMap(c => c.status ? [c.status] : []))]
+  const months = useMemo(() => salesMonthOptions(data?.cases ?? []), [data])
+  const unknownCompletion = departmentCases.some(c => caseCompleted(c) === undefined)
   const local = data?.meta.data_source === 'local'
   const demo = data?.meta.data_source === 'demo'
   const shownIssues = data?.issues.filter(issue => visible.some(c => c.source_row === issue.row_number)) ?? []
@@ -242,8 +249,21 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
         <label><span>Status</span><select aria-label="Status" value={status} onChange={e => { setStatus(e.target.value); setArea('') }}>
           <option value="">Alle statusser</option>{availableStatuses.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
         </select></label>
+        <label><span>Solgt i måned</span><select aria-label="Solgt i måned" value={salesMonth}
+          onChange={e => { setSalesMonth(e.target.value); setArea(''); setSelected(null) }}>
+          <option value="">Alle måneder</option>
+          {months.map(month => <option key={month} value={month}>{salesMonthLabel(month)}</option>)}
+          <option value="__missing">Ikke angivet</option>
+        </select></label>
+        <label><span>Fuldført</span><select aria-label="Fuldført" value={completed}
+          onChange={e => { setCompleted(e.target.value); setArea(''); setSelected(null) }}>
+          <option value="">Alle</option><option value="yes">Ja</option><option value="no">Nej</option>
+          <option value="__missing">Ikke angivet</option>
+        </select></label>
         <button className="text-button" onClick={resetFilters}>Nulstil</button>
       </section>
+      <p className="filter-help">Solgt i måned bruger Salgsdato, ellers Salgsmåned. Fuldført: Ja = markeret Ja; Nej = Nej, Delvist eller tom celle.
+        {unknownCompletion && ' Nogle sager mangler et entydigt Fuldført-felt. Vælg Ikke angivet, eller indlæs Excel-filen igen for at opdatere en ældre gemt kopi.'}</p>
       <div className="list-options">
         <label><input type="checkbox" checked={unresolvedOnly} onChange={e => { setUnresolvedOnly(e.target.checked); setArea('') }} /> Kun uden placering</label>
         {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
@@ -267,6 +287,8 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
               <dt>Rådgiver</dt><dd>{caseAdvisors(detail, advisors).map(a => <span className="advisor-swatch" key={a.key} title={a.name} style={{ backgroundColor: a.color }} aria-hidden="true" />)} {detail.advisor || 'Ikke angivet'}</dd>
               <dt>Afdeling</dt><dd>{detail.department || 'Ikke angivet'}</dd>
               <dt>Status</dt><dd>{detail.status ? statusLabels[detail.status] : 'Ikke angivet'}</dd>
+              <dt>Solgt i måned</dt><dd>{caseSalesMonth(detail) ? salesMonthLabel(caseSalesMonth(detail)!) : 'Ikke angivet'}</dd>
+              <dt>Fuldført</dt><dd>{caseCompleted(detail) === true ? 'Ja' : caseCompleted(detail) === false ? 'Nej' : 'Ikke angivet'}</dd>
               {detail.status_basis && <><dt>Statusgrundlag</dt><dd>{detail.status_basis}</dd></>}
               <dt>Beløb</dt><dd>{detail.estimated_value_dkk !== undefined ? currency.format(detail.estimated_value_dkk) : 'Ikke angivet'}</dd>
               {local && <><dt>Faktureret</dt><dd>{detail.invoiced === true ? 'Ja' : detail.invoiced === false ? 'Nej' : 'Ikke angivet'}</dd></>}
