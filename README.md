@@ -11,6 +11,27 @@ cases in `frontend/src/data/demo-cases.json` are shown when no local import is s
 It does not call a backend or read SharePoint, and it is visibly labelled as a demo.
 Repository access is not needed to view the map.
 
+### Local-mode login screen
+
+The local/demo site opens with a Danish code-entry screen. The dashboard is not
+mounted, and saved imports are not read, until the code is accepted. **Log ud**
+unmounts the dashboard; refresh, a new tab or reopening the page requires the code
+again. Neither the entered code nor an unlocked-session flag is persisted.
+Logging out does not delete the saved Excel import; use **Fjern gemt fil** first
+when retiring a browser profile.
+
+**This is a casual, bypassable screen lock, not authentication or customer-data
+protection.** The static frontend includes a public SHA-256 verifier, not the
+plaintext code. That verifier can still be guessed offline, and someone can
+bypass the UI or inspect browser storage. It does not protect static assets or
+backend endpoints. Do not rely on it on shared computers or expose live data
+because a login screen is present. Distribute the code privately; changing the
+verifier requires rebuilding the frontend. Real access control requires an
+approved server or authentication-capable hosting.
+
+Shared mode continues to use the existing server-authenticated login below,
+not the local screen lock.
+
 ## Shared team mode: one import for everyone
 
 **Implemented, but not activated on the public site yet.** A separately hosted,

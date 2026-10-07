@@ -10,6 +10,7 @@ import { hasPosition, locationKey } from './lib/map-groups'
 import { readWorkbookFile } from './lib/read-workbook-file'
 import { loadSavedImport, removeSavedImport, saveImport } from './lib/saved-import'
 import { SharedLogin } from './components/SharedLogin'
+import { LocalLogin } from './components/LocalLogin'
 import { fetchSharedSnapshot, publishSharedSnapshot } from './lib/shared-api'
 import type { SharedSession } from './lib/shared-api'
 import { caseCompleted, caseSalesMonth, matchesSalesFilters, salesMonthLabel, salesMonthOptions } from './lib/sales-filters'
@@ -24,10 +25,11 @@ const dateTime = new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium', timeSty
 
 export default function App() {
   const [session, setSession] = useState<SharedSession | null>(null)
+  const [unlocked, setUnlocked] = useState(false)
   if (import.meta.env.VITE_SHARED_MODE === 'true') {
     return session ? <Dashboard sharedSession={session} onSignOut={() => setSession(null)} /> : <SharedLogin onLogin={setSession} />
   }
-  return <Dashboard />
+  return unlocked ? <Dashboard onSignOut={() => setUnlocked(false)} /> : <LocalLogin onLogin={() => setUnlocked(true)} />
 }
 
 function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession; onSignOut?: () => void }) {
@@ -190,7 +192,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
       <a className="brand" href="#overview" aria-label="Salgskort, overblik"><strong>NRGi</strong><span>Salgskort</span></a>
       <div className="session-actions">
         <span className="source-pill">{shared ? 'FÆLLES EXCEL' : local ? 'LOKAL EXCEL' : demo ? 'DEMO' : data ? 'LIVE DATA' : 'INGEN DATA'}</span>
-        {shared && <button className="sign-out" disabled={importing || loading} onClick={onSignOut}>Log ud</button>}
+        {onSignOut && <button className="sign-out" disabled={importing || loading || removing} onClick={onSignOut}>Log ud</button>}
       </div>
     </header>
 
