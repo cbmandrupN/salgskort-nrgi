@@ -34,7 +34,8 @@ export function caseSalesMonth(c: Case): string | undefined {
 }
 
 export const sheetStatusLabels: Record<SheetStatus, string> = { nej: 'Nej', igang: 'I gang', afsluttet: 'Afsluttet' }
-const SHEET_STATUS_ORDER: SheetStatus[] = ['nej', 'igang', 'afsluttet']
+// Nej is deliberately not offered as a filter choice; those cases remain visible under Alle.
+const SHEET_STATUS_ORDER: SheetStatus[] = ['igang', 'afsluttet']
 
 export function caseSheetStatus(c: Case): SheetStatus | undefined {
   if (c.sheet_status) return c.sheet_status

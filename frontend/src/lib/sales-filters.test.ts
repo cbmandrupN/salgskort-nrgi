@@ -34,7 +34,8 @@ it('maps Status, keeps legacy Fuldført compatible and never treats closed as Af
   expect(caseSheetStatus({ ...row, status: 'lukket' })).toBeUndefined()
   expect(caseSheetStatus({ ...row, status: 'fuldfoert' })).toBe('afsluttet')
   expect(caseSheetStatus({ ...row, status: 'delvist_faerdig' })).toBe('igang')
-  expect(sheetStatusOptions([{ ...row, sheet_status: 'afsluttet' }, row, { ...row, sheet_status: 'igang' }])).toEqual(['igang', 'afsluttet'])
+  expect(sheetStatusOptions([{ ...row, sheet_status: 'afsluttet' }, row, { ...row, sheet_status: 'nej' }, { ...row, sheet_status: 'igang' }]))
+    .toEqual(['igang', 'afsluttet'])
 })
 
 it('treats future inspection dates as planned relative to today', () => {

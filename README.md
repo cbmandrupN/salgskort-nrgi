@@ -129,7 +129,8 @@ Missing/invalid months remain visible under **Ikke angivet** with import issues.
 `Afsluttet`; case and surrounding spaces are ignored). Blank or unknown values are
 **Ikke angivet**; unknown values are also listed as import issues. Older workbooks
 without `Status` fall back to `Fuldført` (`Ja` → Afsluttet, `Delvist` → I gang,
-`Nej` → Nej). Status is never guessed from `Lukket i BC`.
+`Nej` → Nej). Status is never guessed from `Lukket i BC`. The filter only offers
+**I gang** and **Afsluttet** (plus Ikke angivet); `Nej` cases are shown under **Alle**.
 
 **Besigtiget** derives from `Besigtigelsesdato`: a valid date is **Ja** (a date
 after today is shown as **Planlagt**), blank/`-`/`Nej` is **Nej**, and
