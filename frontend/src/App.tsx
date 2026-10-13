@@ -172,7 +172,6 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
     setAdvisor(key); setDepartment(DEFAULT_DEPARTMENT); setArea(''); setSelected(null)
     if (!buildings.some(c => c.status === status)) setStatus('')
   }
-  const placedCount = departmentCases.filter(hasPosition).length
   const today = todayIso()
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('da-DK')
@@ -241,15 +240,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
     {!data && !loading && !importing && <section className="empty-state"><h2>{shared ? 'Ingen fælles sager endnu' : 'Åbn dit salgsark for at komme i gang'}</h2><p>{shared ? 'Vælg Del ny Excel-fil. Bygninger-sagerne bliver derefter tilgængelige for alle med adgang til kortet.' : 'Vælg en .xlsx-fil med fanen Opgaver. Sagerne bliver kun i din browser.'}</p></section>}
 
     {data && <>
-      <p className="data-notice">{local
-        ? `Kortet viser postnummerområder, ikke præcise adresser. ${data.meta.template_rows_skipped || 0} skabelonrækker uden sagsoplysninger er udeladt.`
-        : demo ? 'Demo med fiktive sager og omtrentlige placeringer. Ingen SharePoint-data.' : 'Sager hentet fra den konfigurerede backend.'}</p>
-      <section className="kpis" aria-label="Nøgletal">
-        <article><span>{department === DEFAULT_DEPARTMENT ? 'Sager i Bygninger' : department ? 'Sager i afdelingen' : local ? 'Sager i arket' : 'Alle sager'}</span><b>{departmentCases.length}</b></article>
-        <article><span>{local ? 'Placeret efter postnr.' : 'Placeret på kort'}</span><b>{placedCount}</b></article>
-        <article><span>Uden placering</span><b>{departmentCases.length - placedCount}</b></article>
-        <article><span>Viser nu</span><b aria-live="polite">{visible.length}</b></article>
-      </section>
+      {demo && !local && <p className="data-notice">Demo med fiktive sager og omtrentlige placeringer. Ingen SharePoint-data.</p>}
       <section className="toolbar" aria-label="Filtrér sager">
         <label className="search"><span>Søg</span><input type="search" placeholder="Virksomhed, adresse eller projektnr."
           value={search} onChange={e => { setSearch(e.target.value); setArea('') }} /></label>
@@ -289,7 +280,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
       <div className="list-options">
         <label><input type="checkbox" checked={unresolvedOnly} onChange={e => { setUnresolvedOnly(e.target.checked); setArea('') }} /> Kun uden placering</label>
         {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
-        <span>{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
+        <span aria-live="polite">{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
       </div>
       <AdvisorBar advisors={advisors} selected={department === DEFAULT_DEPARTMENT ? advisor : null}
         total={buildings.length} missing={missingAdvisors} onSelect={selectAdvisor} />

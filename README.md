@@ -112,7 +112,8 @@ or background refresh; the displayed cases are a snapshot of the selected file.
 The default audience is **advisors in Bygninger**. Initial load, each newly selected Excel
 import, **Fjern gemt fil** and **Nulstil** select **Bygninger (alle)**, combining Bygninger
 and its regional departments (including Bygninger Vest and Bygninger Øst).
-The map, list, department KPIs and status options use that scope.
+The map, list, case count and status options use that scope. The map shows
+postcode areas, not exact addresses; month-only template rows are left out.
 Changing department clears the previous advisor and status to avoid stale filters.
 Other departments remain available via an explicit selection; this is a default
 view, not access control. A successful new import resets the filters and closes
@@ -210,7 +211,7 @@ bad amounts and missing/conflicting postcodes are reported with the Excel row nu
 Duplicate project numbers remain separate cases.
 
 The attached workbook's structure includes month-only template rows. They are
-excluded from case counts, with the number explicitly shown in the UI. Rows with
+excluded from case counts. Rows with
 case data are retained even when they cannot be placed. Missing/renamed worksheets
 or required columns are errors; the importer never silently switches to a pivot.
 Files are limited to 10 MB and worksheets to 5,000 rows.
