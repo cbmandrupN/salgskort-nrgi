@@ -317,7 +317,6 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
           </details>}
         </aside>
       </section>
-      <footer className="footnote">{shared ? 'Bygninger-sager: fælles, adgangsbeskyttet backend' : 'Excel-import: gemt lokalt i denne browser'} · Ingen kundeoplysninger sendes til geokodning · Baggrundskort: OpenStreetMap · Postnummercentre: DAWA/Dataforsyningen</footer>
     </>}
   </main>
 }

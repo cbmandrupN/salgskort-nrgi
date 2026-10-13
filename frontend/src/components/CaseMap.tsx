@@ -38,7 +38,7 @@ export function CaseMap({ cases, advisors, onAreaClick }: { cases: Case[]; advis
   return <div className={`map-surface${mapStyle === 'quiet' ? ' map-surface--quiet' : ''}`}>
     <MapContainer center={[56.1, 10.3]} zoom={7} scrollWheelZoom>
       <TileLayer url={import.meta.env.VITE_MAP_TILE_URL || 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · Postnumre: DAWA/Dataforsyningen'
         eventHandlers={{ tileerror: () => setTileError(true) }} />
       <FitBounds cases={cases} />
       {groups.map(group => <Marker key={`${group.key}:${group.advisors.map(a => `${a.key}:${a.count}`).join('|')}`}
