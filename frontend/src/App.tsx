@@ -205,23 +205,15 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
       </div>
     </header>
 
-    <section className="intro" id="overview">
-      <div><h1>Sager i Danmark</h1><p>Overblik til rådgivere i Bygninger. Vælg rådgiver for at finde dine sager.</p></div>
-      {data && <p className="sync">{shared ? `Fælles kopi · version ${sharedRevision.current}` : local ? 'Indlæst lokalt' : demo ? 'Eksempeldata fra' : 'Sidst synkroniseret'}<br/>
-        <strong>{dateTime.format(new Date(data.meta.fetched_at))}</strong></p>}
-    </section>
-
-    <section className="import-bar" aria-label="Indlæs dit salgsark">
-      <div className="import-copy">
+    <h1 className="visually-hidden">Sager i Danmark</h1>
+    <section className="import-bar" id="overview" aria-label="Indlæs dit salgsark">
+      <p className="import-copy">
         <strong>{fileName || 'Åbn den seneste Salgsliste.xlsx'}</strong>
-        {shared ? <>
-          <p>Del en ny fil for at erstatte teamets fælles kopi. Kun Bygninger-sager deles; den oprindelige Excel-fil sendes ikke.</p>
-          <p>Kolleger åbner samme link med teamets adgangskode. Hent seneste for at se en kollegas nye import.</p>
-        </> : <>
-          <p>{local ? 'Gemt i denne browser og klar næste gang. Vælg Skift Excel-fil, når du har en nyere version.' : 'Download den seneste fil fra SharePoint, og åbn den her. Sagerne gemmes kun i denne browser.'}</p>
-          <p>Ikke delt med kolleger. Fælles deling er ikke tilsluttet på denne udgave af siden.</p>
-        </>}
-      </div>
+        {data && <span>{shared ? `Fælles kopi · version ${sharedRevision.current}` : local ? 'Indlæst' : demo ? 'Eksempeldata fra' : 'Sidst synkroniseret'} {dateTime.format(new Date(data.meta.fetched_at))}</span>}
+        <span>{shared ? 'Kun Bygninger-sager deles med kolleger med adgangskoden; Excel-filen sendes ikke.'
+          : local ? 'Gemt kun i denne browser – ikke delt med kolleger.'
+          : 'Download filen fra SharePoint og åbn den her. Gemmes kun i denne browser.'}</span>
+      </p>
       <label className={`file-button${importing || removing || (shared && loading) ? ' disabled' : ''}`}>
         <input className="visually-hidden" type="file" accept=".xlsx" aria-label="Åbn Excel-fil"
           disabled={importing || removing || (shared && loading)} onChange={onFileChange} />

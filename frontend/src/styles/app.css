@@ -6,13 +6,13 @@ button, select { cursor: pointer; }
 button:disabled { cursor: wait; opacity: .6; }
 :focus-visible { outline: 3px solid #006eac; outline-offset: 3px; }
 .shell { min-height: 100vh; }
-.topbar { min-height: 64px; background: #073b55; color: white; display: flex; align-items: center; justify-content: space-between; padding: 12px 4vw; gap: 16px; }
+.topbar { min-height: 52px; background: #073b55; color: white; display: flex; align-items: center; justify-content: space-between; padding: 6px 4vw; gap: 16px; }
 .brand { display: flex; align-items: baseline; gap: 14px; color: white; text-decoration: none; }
 .brand strong { font-size: 24px; }
 .brand span { color: #cae2e9; font-size: 16px; }
 .source-pill { font-size: 12px; font-weight: 600; letter-spacing: .05em; border: 1px solid #8cbbc8; border-radius: 4px; padding: 5px 9px; white-space: nowrap; }
 .session-actions { display: flex; align-items: center; gap: 12px; }
-.sign-out { min-height: 44px; padding: 8px 12px; border: 1px solid #8cbbc8; border-radius: 4px; color: white; background: transparent; }
+.sign-out { min-height: 36px; padding: 6px 12px; border: 1px solid #8cbbc8; border-radius: 4px; color: white; background: transparent; }
 .sign-out:hover { background: #15546b; }
 .shared-login { max-width: 660px; margin: 0 auto; padding: 48px 24px; }
 .shared-login p { color: #4d6572; line-height: 1.6; }
@@ -32,14 +32,11 @@ button:disabled { cursor: wait; opacity: .6; }
 .advisor-button[aria-pressed="true"] { background: #e8f0f5; border-color: #073b55; font-weight: 600; }
 .advisor-count { color: #4d6572; font-size: 13px; font-variant-numeric: tabular-nums; }
 .advisor-swatch { display: inline-block; width: 13px; height: 13px; border-radius: 50%; flex: 0 0 13px; vertical-align: -1px; border: 1px solid rgb(18 48 71 / 25%); }
-.intro { display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 24px 4vw; background: white; }
 h1 { font-size: clamp(26px, 3vw, 34px); margin: 0; color: #073b55; letter-spacing: -.02em; }
-.intro p { color: #4d6572; margin: 7px 0 0; }
-.intro .sync { font-size: 14px; text-align: right; line-height: 1.6; }
-.import-bar { display: flex; align-items: center; gap: 12px; padding: 18px 4vw; background: #e8f3ef; border-block: 1px solid #cbdfd7; }
-.import-copy { flex: 1; min-width: 0; }
-.import-copy strong { overflow-wrap: anywhere; }
-.import-copy p { font-size: 14px; color: #355b4f; margin: 4px 0 0; line-height: 1.5; }
+.import-bar { display: flex; align-items: center; gap: 10px; padding: 8px 4vw; background: #e8f3ef; border-block: 1px solid #cbdfd7; }
+.import-copy { flex: 1; min-width: 0; margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; font-size: 14px; color: #355b4f; line-height: 1.5; }
+.import-copy strong { overflow-wrap: anywhere; color: #123047; font-size: 15px; }
+.import-bar .file-button, .import-bar .secondary-button { min-height: 36px; padding: 6px 14px; }
 .file-button, .secondary-button { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 10px 16px; border-radius: 4px; border: 1px solid #087658; white-space: nowrap; }
 .file-button { position: relative; background: #087658; color: white; font-weight: 600; cursor: pointer; }
 .file-button:hover { background: #065c45; }
@@ -49,7 +46,7 @@ h1 { font-size: clamp(26px, 3vw, 34px); margin: 0; color: #073b55; letter-spacin
 .secondary-button:hover { background: #d9eae3; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .data-notice { margin: 0; padding: 12px 4vw; color: #4d6572; font-size: 14px; line-height: 1.5; }
-.toolbar { display: flex; flex-wrap: wrap; gap: 14px; padding: 18px 4vw; background: white; align-items: end; }
+.toolbar { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 4vw; background: white; align-items: end; }
 .filter-help { margin: 0; padding: 0 4vw 12px; background: white; color: #4d6572; font-size: 14px; line-height: 1.5; }
 .toolbar label { display: grid; gap: 5px; min-width: 0; }
 .toolbar label > span { font-size: 13px; color: #4d6572; font-weight: 600; }
@@ -116,8 +113,6 @@ h1 { font-size: clamp(26px, 3vw, 34px); margin: 0; color: #073b55; letter-spacin
   .workspace { grid-template-columns: minmax(0, 1fr) 330px; }
 }
 @media (max-width: 700px) {
-  .intro { align-items: start; flex-direction: column; gap: 8px; }
-  .intro .sync { text-align: left; }
   .import-bar { flex-wrap: wrap; }
   .import-copy { flex-basis: 100%; }
   .toolbar label:not(.search) { flex-basis: calc(50% - 14px); }
