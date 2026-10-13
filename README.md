@@ -140,7 +140,7 @@ after today is shown as **Planlagt**), blank/`-`/`Nej` is **Nej**, and
 
 The separate **Fremdrift** filter keeps the derived progress (see precedence below)
 in a fixed workflow order rather than alphabetical order.
-All filters combine with search, department, advisor and unplaced-only;
+All filters combine with search, department and advisor;
 **Nulstil**, successful import, removal and shared refresh clear them.
 Old saved snapshots are still readable, but lack Status/Besigtiget values:
 reimport the latest XLSX to populate them. New optional fields survive local and

@@ -52,7 +52,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   const [sheetStatus, setSheetStatus] = useState('')
   const [inspection, setInspection] = useState('')
   const [sort, setSort] = useState<CaseSort>('sale_desc')
-  const [unresolvedOnly, setUnresolvedOnly] = useState(false)
+
   const [area, setArea] = useState('')
   const revision = useRef(0)
   const sharedRevision = useRef(0)
@@ -91,7 +91,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   function resetFilters() {
     setSearch(''); setAdvisor(''); setDepartment(DEFAULT_DEPARTMENT); setStatus('')
     setSalesMonth(''); setSheetStatus(''); setInspection('')
-    setUnresolvedOnly(false); setArea(''); setSelected(null)
+    setArea(''); setSelected(null)
   }
 
   async function onFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -178,10 +178,10 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
     return departmentCases.filter(c =>
       (!needle || [c.customer_name, c.address_raw, c.case_number, c.postal_code].join(' ').toLocaleLowerCase('da-DK').includes(needle)) &&
       (!advisor || (advisor === MISSING_ADVISOR ? !advisorNames(c.advisor).length : hasAdvisor(c, advisor))) &&
-      (!status || c.status === status) && (!unresolvedOnly || !hasPosition(c)) &&
+      (!status || c.status === status) &&
       matchesSalesFilters(c, { month: salesMonth, sheetStatus, inspection, today })
     )
-  }, [departmentCases, search, advisor, status, unresolvedOnly, salesMonth, sheetStatus, inspection, today])
+  }, [departmentCases, search, advisor, status, salesMonth, sheetStatus, inspection, today])
   const visible = useMemo(() => sortCases(area ? filtered.filter(c => locationKey(c) === area) : filtered, sort), [filtered, area, sort])
   const detail = selected && visible.some(c => c.id === selected.id) ? selected : null
   const departments = [...new Set(data?.cases.flatMap(c => c.department ? [c.department] : []))].sort((a, b) => a.localeCompare(b, 'da'))
@@ -278,7 +278,6 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
         {staleImport ? ' Den gemte kopi er fra en ældre version af arket. Indlæs den nyeste Excel-fil for at filtrere på Status og Besigtiget.'
           : (unknownSheetStatus || unknownInspection) && ' Sager uden en læsbar værdi findes under Ikke angivet.'}</p>
       <div className="list-options">
-        <label><input type="checkbox" checked={unresolvedOnly} onChange={e => { setUnresolvedOnly(e.target.checked); setArea('') }} /> Kun uden placering</label>
         {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
         <span aria-live="polite">{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
       </div>

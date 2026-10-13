@@ -59,8 +59,6 @@ h1 { font-size: clamp(26px, 3vw, 34px); margin: 0; color: #073b55; letter-spacin
 .text-button { background: transparent; border: 0; color: #086949; text-decoration: underline; text-underline-offset: 3px; min-height: 36px; padding: 5px 0; text-align: left; }
 .text-button:hover { color: #073b55; }
 .list-options { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 24px; padding: 6px 4vw 14px; background: white; font-size: 14px; }
-.list-options label { display: flex; align-items: center; min-height: 32px; gap: 7px; }
-.list-options input { width: 18px; height: 18px; accent-color: #087658; }
 .list-options > span { margin-left: auto; color: #4d6572; }
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 390px; min-height: 500px; height: 65vh; border-top: 1px solid #d4e0e4; }
 .map-wrap { min-width: 0; position: relative; background: #dbe6e8; }
