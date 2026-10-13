@@ -85,6 +85,9 @@ h1 { font-size: clamp(26px, 3vw, 34px); margin: 0; color: #073b55; letter-spacin
 .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e0e9ec; }
 .panel-head h2 { margin: 0; font-size: 18px; }
 .panel-head span { font-size: 14px; color: #4d6572; }
+.sort-control { display: flex; align-items: center; gap: 10px; padding: 10px 20px; border-bottom: 1px solid #e0e9ec; }
+.sort-control span { font-size: 13px; font-weight: 600; color: #4d6572; }
+.sort-control select { flex: 1; min-width: 0; min-height: 40px; border: 1px solid #a9bec7; border-radius: 4px; padding: 6px 10px; background: white; color: #123047; font-size: 16px; }
 .case-row { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; border: 0; border-bottom: 1px solid #e0e9ec; padding: 16px 20px; color: #123047; background: white; }
 .case-row:hover { background: #edf6f2; }
 .case-row > span:first-child { min-width: 0; }

@@ -1,7 +1,8 @@
 import type { CellValue, Worksheet } from 'exceljs'
 import type { ApiResponse, Case, CaseStatus, RowIssue } from '../types/cases'
 import postcodeData from '../data/postcodes.json'
-import { isSalesMonth, salesDateMonth } from './sales-filters'
+import { isSalesMonth, salesDateMonth, sheetDate } from './sales-filters'
+import type { Inspection, SheetStatus } from '../types/cases'
 
 export const MAX_WORKBOOK_BYTES = 10 * 1024 * 1024
 const MAX_ROWS = 5000
@@ -19,11 +20,22 @@ export const COLUMN_MAPPING = {
   created_bc: 'Oprettet i BC',
   case_number: 'Projekt nr.',
   advisor: 'Rådgiver',
+  inspection_date: 'Besigtigelsesdato',
   report_sent: 'Rapport sendt til kunde & sælger',
+  work_status: 'Status',
   completed: 'Fuldført',
-  invoiced: 'Faktureret',
-  closed: 'Lukket i BC',
+  invoiced: 'Faktureret (CHAT/CHPI)',
+  closed: 'Lukket i BC (CHAT/CHPI)',
 } as const
+
+/** Earlier Salgsliste versions used these headers; the first match wins. */
+export const LEGACY_HEADERS: Partial<Record<keyof typeof COLUMN_MAPPING, readonly string[]>> = {
+  invoiced: ['Faktureret'],
+  closed: ['Lukket i BC'],
+}
+
+const SHEET_STATUS_VALUES: Record<string, SheetStatus> = { afsluttet: 'afsluttet', igang: 'igang', 'i gang': 'igang', nej: 'nej' }
+const LEGACY_COMPLETED_STATUS: Record<string, SheetStatus> = { ja: 'afsluttet', delvist: 'igang', nej: 'nej' }
 
 type Field = keyof typeof COLUMN_MAPPING
 type Values = Partial<Record<Field, string>>
@@ -61,13 +73,23 @@ export function normalizePostalCode(separate: string, address: string): { code?:
   return { code: fromField || fromAddress, conflict: false }
 }
 
-function statusFrom(values: Values): { status: CaseStatus; basis: string } {
+function statusFrom(values: Values, sheetStatus?: SheetStatus): { status: CaseStatus; basis: string } {
   if (['ja', 'lukket'].includes(normalized(values.closed || ''))) return { status: 'lukket', basis: 'Lukket i BC' }
+  if (sheetStatus === 'afsluttet' && values.work_status) return { status: 'fuldfoert', basis: 'Status = Afsluttet' }
   if (normalized(values.completed || '') === 'ja') return { status: 'fuldfoert', basis: 'Fuldført = Ja' }
   if (normalized(values.completed || '') === 'delvist') return { status: 'delvist_faerdig', basis: 'Fuldført = Delvist' }
   if (normalized(values.report_sent || '') === 'ja') return { status: 'rapport_sendt', basis: 'Rapport sendt = Ja' }
+  if (sheetStatus === 'igang' && values.work_status) return { status: 'i_gang', basis: 'Status = Igang' }
   if (normalized(values.created_bc || '') === 'ja') return { status: 'i_gang', basis: 'Oprettet i BC = Ja' }
   return { status: 'ny', basis: 'Ingen senere fremdrift registreret i arket' }
+}
+
+function inspectionFrom(text: string, date1904: boolean): { inspection?: Inspection; date?: string } | undefined {
+  const value = normalized(text)
+  if (['', '-', '–', 'nej'].includes(value)) return { inspection: 'nej' }
+  if (/^(?:ingen|ikke) (?:besigtigelse )?påkrævet$/.test(value)) return { inspection: 'ikke_paakraevet' }
+  const date = sheetDate(text, date1904)
+  return date ? { inspection: 'ja', date } : undefined
 }
 
 export function parseWorksheet(sheet: Worksheet): ApiResponse {
@@ -80,7 +102,8 @@ export function parseWorksheet(sheet: Worksheet): ApiResponse {
   })
   const fields: Partial<Record<Field, number>> = {}
   for (const [field, header] of Object.entries(COLUMN_MAPPING)) {
-    fields[field as Field] = headers.get(normalized(header))
+    const names = [header, ...(LEGACY_HEADERS[field as Field] ?? [])]
+    fields[field as Field] = names.map(name => headers.get(normalized(name))).find(Boolean)
   }
   for (const field of ['customer_name', 'address', 'postal_code', 'advisor', 'department'] as const) {
     if (!fields[field]) throw new Error(`Fanen Opgaver mangler kolonnen "${COLUMN_MAPPING[field]}".`)
@@ -120,10 +143,26 @@ export function parseWorksheet(sheet: Worksheet): ApiResponse {
       : 'Postnummeret mangler eller har intet kendt geografisk centrum. Sagen er ikke placeret.', 'fejl')
     for (const field of ['created_bc', 'report_sent', 'completed', 'invoiced', 'closed'] as const) {
       const value = normalized(values[field] || '')
-      const allowed = field === 'closed' ? ['ja', 'nej', 'lukket'] : field === 'completed' ? ['ja', 'nej', 'delvist'] : ['ja', 'nej']
+      const allowed = field === 'closed' ? ['ja', 'nej', 'lukket'] : field === 'completed' ? ['ja', 'nej', 'delvist']
+        : field === 'report_sent' ? ['ja', 'nej', 'igang', 'i gang'] : ['ja', 'nej']
       if (value && !allowed.includes(value)) addIssue(sourceRow, field, `Ukendt værdi i "${COLUMN_MAPPING[field]}"; ikke brugt i status.`)
     }
-    const progress = statusFrom(values)
+    const readError = (field: Field) => issues.some(issue => issue.row_number === sourceRow && issue.field === field && issue.severity === 'fejl')
+    const statusText = normalized(values.work_status || '')
+    const legacyText = normalized(values.completed || '')
+    let sheetStatus: SheetStatus | undefined
+    if (statusText) {
+      sheetStatus = SHEET_STATUS_VALUES[statusText]
+      if (!sheetStatus) addIssue(sourceRow, 'work_status', 'Ukendt værdi i "Status"; sagen vises under Ikke angivet.')
+    } else if (fields.completed && !readError('completed')) {
+      sheetStatus = LEGACY_COMPLETED_STATUS[legacyText]
+    }
+    const progress = statusFrom(values, sheetStatus)
+    let inspection: ReturnType<typeof inspectionFrom>
+    if (fields.inspection_date && !readError('inspection_date')) {
+      inspection = inspectionFrom(values.inspection_date || '', Boolean(sheet.workbook.properties.date1904))
+      if (!inspection) addIssue(sourceRow, 'inspection_date', 'Besigtigelsesdato kunne ikke læses; sagen vises under Ikke angivet.')
+    }
     const monthFromDate = salesDateMonth(values.created_date || '', Boolean(sheet.workbook.properties.date1904))
     if (values.created_date && !monthFromDate) addIssue(sourceRow, 'created_date', 'Salgsdatoen kunne ikke læses som en gyldig dato.')
     let salesMonth = monthFromDate
@@ -137,11 +176,11 @@ export function parseWorksheet(sheet: Worksheet): ApiResponse {
       }
     }
     if (!salesMonth) addIssue(sourceRow, 'sales_month', 'Salgsmåned mangler; sagen vises under Ikke angivet.')
-    const completionText = normalized(values.completed || '')
-    const completionReadError = issues.some(issue => issue.row_number === sourceRow && issue.field === 'completed' && issue.severity === 'fejl')
-    const completed = fields.completed && !completionReadError
-      ? completionText === 'ja' ? true : ['', 'nej', 'delvist'].includes(completionText) ? false : undefined
-      : undefined
+    const completed = statusText
+      ? sheetStatus ? sheetStatus === 'afsluttet' : undefined
+      : fields.completed && !readError('completed')
+        ? legacyText === 'ja' ? true : ['', 'nej', 'delvist'].includes(legacyText) ? false : undefined
+        : undefined
     cases.push({
       id: `excel-row-${sourceRow}`, source_row: sourceRow,
       case_number: values.case_number || undefined,
@@ -152,6 +191,7 @@ export function parseWorksheet(sheet: Worksheet): ApiResponse {
       latitude: center?.latitude, longitude: center?.longitude,
       geocode_status: center ? 'delvis' : 'fejlet',
       status: progress.status, status_basis: progress.basis,
+      sheet_status: sheetStatus, inspection: inspection?.inspection, inspection_date: inspection?.date,
       estimated_value_dkk: amount, product_type: values.product_type || undefined,
       created_date: values.created_date || undefined,
       sales_month: salesMonth, completed,

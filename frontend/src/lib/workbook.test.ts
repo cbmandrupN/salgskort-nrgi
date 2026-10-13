@@ -113,6 +113,55 @@ describe('Opgaver mapping', () => {
     sheet.getRow(1).getCell(Object.keys(COLUMN_MAPPING).indexOf('completed') + 1).value = 'Fjernet'
     expect(parseWorksheet(sheet).cases.every(c => c.completed === undefined)).toBe(true)
   })
+
+  it('reads the new Status column ahead of Fuldført and derives completion from Afsluttet', () => {
+    const { sheet } = fixture()
+    for (const work_status of ['Afsluttet', 'Igang ', 'i gang', 'Nej ', '', 'Måske']) {
+      sheet.addRow(row({ work_status, completed: 'Ja', created_bc: '' }))
+    }
+    const data = parseWorksheet(sheet)
+    expect(data.cases.map(c => c.sheet_status)).toEqual(['afsluttet', 'igang', 'igang', 'nej', 'afsluttet', undefined])
+    expect(data.cases.map(c => c.completed)).toEqual([true, false, false, false, true, undefined])
+    expect(data.cases.map(c => c.status)).toEqual(['fuldfoert', 'fuldfoert', 'fuldfoert', 'fuldfoert', 'fuldfoert', 'fuldfoert'])
+    expect(data.issues.some(i => i.row_number === 7 && i.field === 'work_status')).toBe(true)
+  })
+
+  it('maps legacy Fuldført to Status when the Status column is absent', () => {
+    const { sheet } = fixture()
+    sheet.getRow(1).getCell(Object.keys(COLUMN_MAPPING).indexOf('work_status') + 1).value = 'Fjernet'
+    for (const completed of ['Ja', 'Delvist', 'Nej', '']) sheet.addRow(row({ completed }))
+    expect(parseWorksheet(sheet).cases.map(c => c.sheet_status)).toEqual(['afsluttet', 'igang', 'nej', undefined])
+  })
+
+  it('derives Besigtiget from Besigtigelsesdato and reports unreadable values', () => {
+    const { sheet } = fixture()
+    for (const inspection_date of [new Date('2026-03-04T00:00:00Z'), '5.3.2026', '', '-', 'ingen påkrævet', 'snart']) {
+      sheet.addRow(row({ inspection_date }))
+    }
+    const data = parseWorksheet(sheet)
+    expect(data.cases.map(c => [c.inspection, c.inspection_date])).toEqual([
+      ['ja', '2026-03-04'], ['ja', '2026-03-05'], ['nej', undefined], ['nej', undefined],
+      ['ikke_paakraevet', undefined], [undefined, undefined],
+    ])
+    expect(data.issues.some(i => i.row_number === 7 && i.field === 'inspection_date')).toBe(true)
+    sheet.getRow(1).getCell(Object.keys(COLUMN_MAPPING).indexOf('inspection_date') + 1).value = 'Fjernet'
+    expect(parseWorksheet(sheet).cases.every(c => c.inspection === undefined)).toBe(true)
+  })
+
+  it('accepts the renamed CHAT/CHPI headers and older short headers', () => {
+    const { sheet } = fixture()
+    const closedColumn = Object.keys(COLUMN_MAPPING).indexOf('closed') + 1
+    const invoicedColumn = Object.keys(COLUMN_MAPPING).indexOf('invoiced') + 1
+    sheet.getRow(1).getCell(closedColumn).value = 'Lukket i BC\n(CHAT/CHPI)'
+    sheet.addRow(row({ closed: 'Lukket', invoiced: 'Ja ', report_sent: 'Igang' }))
+    let data = parseWorksheet(sheet)
+    expect(data.cases[0]).toMatchObject({ status: 'lukket', invoiced: true })
+    expect(data.issues.some(i => i.field === 'report_sent')).toBe(false)
+    sheet.getRow(1).getCell(closedColumn).value = 'Lukket i BC'
+    sheet.getRow(1).getCell(invoicedColumn).value = 'Faktureret'
+    data = parseWorksheet(sheet)
+    expect(data.cases[0]).toMatchObject({ status: 'lukket', invoiced: true })
+  })
 })
 
 it('normalizes Danish postcodes and numbers without multiplying numeric Excel values', () => {

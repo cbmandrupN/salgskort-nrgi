@@ -13,7 +13,9 @@ import { SharedLogin } from './components/SharedLogin'
 import { LocalLogin } from './components/LocalLogin'
 import { fetchSharedSnapshot, publishSharedSnapshot } from './lib/shared-api'
 import type { SharedSession } from './lib/shared-api'
-import { caseCompleted, caseSalesMonth, matchesSalesFilters, salesMonthLabel, salesMonthOptions } from './lib/sales-filters'
+import { caseInspection, caseSalesMonth, caseSheetStatus, caseSortLabels, inspectionLabels, inspectionOptions, matchesSalesFilters,
+  PROGRESS_ORDER, salesMonthLabel, salesMonthOptions, sheetStatusLabels, sheetStatusOptions, sortCases, todayIso } from './lib/sales-filters'
+import type { CaseSort } from './lib/sales-filters'
 
 const statusLabels: Record<CaseStatus, string> = {
   ny: 'Ny', i_gang: 'I gang', tilbud_sendt: 'Tilbud sendt', vundet: 'Vundet',
@@ -22,6 +24,7 @@ const statusLabels: Record<CaseStatus, string> = {
 }
 const currency = new Intl.NumberFormat('da-DK', { style: 'currency', currency: 'DKK', maximumFractionDigits: 0 })
 const dateTime = new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium', timeStyle: 'short' })
+const shortDate = new Intl.DateTimeFormat('da-DK', { dateStyle: 'medium', timeZone: 'UTC' })
 
 export default function App() {
   const [session, setSession] = useState<SharedSession | null>(null)
@@ -46,7 +49,9 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   const [department, setDepartment] = useState(DEFAULT_DEPARTMENT)
   const [status, setStatus] = useState('')
   const [salesMonth, setSalesMonth] = useState('')
-  const [completed, setCompleted] = useState('')
+  const [sheetStatus, setSheetStatus] = useState('')
+  const [inspection, setInspection] = useState('')
+  const [sort, setSort] = useState<CaseSort>('sale_desc')
   const [unresolvedOnly, setUnresolvedOnly] = useState(false)
   const [area, setArea] = useState('')
   const revision = useRef(0)
@@ -85,7 +90,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
 
   function resetFilters() {
     setSearch(''); setAdvisor(''); setDepartment(DEFAULT_DEPARTMENT); setStatus('')
-    setSalesMonth(''); setCompleted('')
+    setSalesMonth(''); setSheetStatus(''); setInspection('')
     setUnresolvedOnly(false); setArea(''); setSelected(null)
   }
 
@@ -168,24 +173,31 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
     if (!buildings.some(c => c.status === status)) setStatus('')
   }
   const placedCount = departmentCases.filter(hasPosition).length
+  const today = todayIso()
   const filtered = useMemo(() => {
     const needle = search.trim().toLocaleLowerCase('da-DK')
     return departmentCases.filter(c =>
       (!needle || [c.customer_name, c.address_raw, c.case_number, c.postal_code].join(' ').toLocaleLowerCase('da-DK').includes(needle)) &&
       (!advisor || (advisor === MISSING_ADVISOR ? !advisorNames(c.advisor).length : hasAdvisor(c, advisor))) &&
       (!status || c.status === status) && (!unresolvedOnly || !hasPosition(c)) &&
-      matchesSalesFilters(c, salesMonth, completed)
+      matchesSalesFilters(c, { month: salesMonth, sheetStatus, inspection, today })
     )
-  }, [departmentCases, search, advisor, status, unresolvedOnly, salesMonth, completed])
-  const visible = area ? filtered.filter(c => locationKey(c) === area) : filtered
+  }, [departmentCases, search, advisor, status, unresolvedOnly, salesMonth, sheetStatus, inspection, today])
+  const visible = useMemo(() => sortCases(area ? filtered.filter(c => locationKey(c) === area) : filtered, sort), [filtered, area, sort])
   const detail = selected && visible.some(c => c.id === selected.id) ? selected : null
   const departments = [...new Set(data?.cases.flatMap(c => c.department ? [c.department] : []))].sort((a, b) => a.localeCompare(b, 'da'))
-  const availableStatuses = [...new Set(departmentCases.flatMap(c => c.status ? [c.status] : []))]
+  const presentStatuses = new Set(departmentCases.map(c => c.status))
+  const availableStatuses = PROGRESS_ORDER.filter(s => presentStatuses.has(s) || s === status)
   const months = useMemo(() => salesMonthOptions(data?.cases ?? []), [data])
-  const unknownCompletion = departmentCases.some(c => caseCompleted(c) === undefined)
+  const sheetStatuses = useMemo(() => sheetStatusOptions(data?.cases ?? []), [data])
+  const inspections = useMemo(() => inspectionOptions(data?.cases ?? [], today), [data, today])
+  const unknownSheetStatus = departmentCases.some(c => caseSheetStatus(c) === undefined)
+  const unknownInspection = departmentCases.some(c => caseInspection(c, today) === undefined)
+  const staleImport = departmentCases.some(c => !c.sheet_status && c.inspection === undefined && c.completed !== undefined)
   const local = data?.meta.data_source === 'local'
   const demo = data?.meta.data_source === 'demo'
-  const shownIssues = data?.issues.filter(issue => visible.some(c => c.source_row === issue.row_number)) ?? []
+  const shownIssues = (data?.issues.filter(issue => visible.some(c => c.source_row === issue.row_number)) ?? [])
+    .sort((a, b) => a.row_number - b.row_number)
 
   return <main className="shell">
     <header className="topbar">
@@ -248,8 +260,17 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
           <option value="">Alle afdelinger</option>{departments.map(d => <option key={d}>{d}</option>)}
           {data.cases.some(c => !c.department) && <option value="__missing">Ikke angivet</option>}
         </select></label>
-        <label><span>Status</span><select aria-label="Status" value={status} onChange={e => { setStatus(e.target.value); setArea('') }}>
-          <option value="">Alle statusser</option>{availableStatuses.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
+        <label><span>Status</span><select aria-label="Status" value={sheetStatus}
+          onChange={e => { setSheetStatus(e.target.value); setArea(''); setSelected(null) }}>
+          <option value="">Alle</option>
+          {sheetStatuses.map(s => <option key={s} value={s}>{sheetStatusLabels[s]}</option>)}
+          <option value="__missing">Ikke angivet</option>
+        </select></label>
+        <label><span>Besigtiget</span><select aria-label="Besigtiget" value={inspection}
+          onChange={e => { setInspection(e.target.value); setArea(''); setSelected(null) }}>
+          <option value="">Alle</option>
+          {inspections.map(s => <option key={s} value={s}>{inspectionLabels[s]}</option>)}
+          <option value="__missing">Ikke angivet</option>
         </select></label>
         <label><span>Solgt i måned</span><select aria-label="Solgt i måned" value={salesMonth}
           onChange={e => { setSalesMonth(e.target.value); setArea(''); setSelected(null) }}>
@@ -257,15 +278,14 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
           {months.map(month => <option key={month} value={month}>{salesMonthLabel(month)}</option>)}
           <option value="__missing">Ikke angivet</option>
         </select></label>
-        <label><span>Fuldført</span><select aria-label="Fuldført" value={completed}
-          onChange={e => { setCompleted(e.target.value); setArea(''); setSelected(null) }}>
-          <option value="">Alle</option><option value="yes">Ja</option><option value="no">Nej</option>
-          <option value="__missing">Ikke angivet</option>
+        <label><span>Fremdrift</span><select aria-label="Fremdrift" value={status} onChange={e => { setStatus(e.target.value); setArea(''); setSelected(null) }}>
+          <option value="">Alle</option>{availableStatuses.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
         </select></label>
         <button className="text-button" onClick={resetFilters}>Nulstil</button>
       </section>
-      <p className="filter-help">Solgt i måned bruger Salgsdato, ellers Salgsmåned. Fuldført: Ja = markeret Ja; Nej = Nej, Delvist eller tom celle.
-        {unknownCompletion && ' Nogle sager mangler et entydigt Fuldført-felt. Vælg Ikke angivet, eller indlæs Excel-filen igen for at opdatere en ældre gemt kopi.'}</p>
+      <p className="filter-help">Status og Besigtiget læses fra arkets kolonner Status og Besigtigelsesdato (dato = Ja, tom eller “-” = Nej, fremtidig dato = Planlagt). Fremdrift samler også Rapport sendt og Lukket i BC.
+        {staleImport ? ' Den gemte kopi er fra en ældre version af arket. Indlæs den nyeste Excel-fil for at filtrere på Status og Besigtiget.'
+          : (unknownSheetStatus || unknownInspection) && ' Sager uden en læsbar værdi findes under Ikke angivet.'}</p>
       <div className="list-options">
         <label><input type="checkbox" checked={unresolvedOnly} onChange={e => { setUnresolvedOnly(e.target.checked); setArea('') }} /> Kun uden placering</label>
         {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
@@ -280,6 +300,10 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
         </div>
         <aside className="side-panel" aria-label="Sagsliste og detaljer">
           <div className="panel-head"><h2>{detail ? 'Sagsdetaljer' : area ? 'Sager i området' : 'Sager'}</h2><span>{visible.length}</span></div>
+          {!detail && visible.length > 1 && <label className="sort-control"><span>Sortér</span>
+            <select aria-label="Sortér sager" value={sort} onChange={e => setSort(e.target.value as CaseSort)}>
+              {(Object.keys(caseSortLabels) as CaseSort[]).map(key => <option key={key} value={key}>{caseSortLabels[key]}</option>)}
+            </select></label>}
           {detail ? <div className="detail">
             <button className="text-button" onClick={() => setSelected(null)}>← Tilbage til listen</button>
             <p className="case-number">{detail.case_number || `Række ${detail.source_row}`}</p>
@@ -288,10 +312,12 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
             <dl>
               <dt>Rådgiver</dt><dd>{caseAdvisors(detail, advisors).map(a => <span className="advisor-swatch" key={a.key} title={a.name} style={{ backgroundColor: a.color }} aria-hidden="true" />)} {detail.advisor || 'Ikke angivet'}</dd>
               <dt>Afdeling</dt><dd>{detail.department || 'Ikke angivet'}</dd>
-              <dt>Status</dt><dd>{detail.status ? statusLabels[detail.status] : 'Ikke angivet'}</dd>
+              <dt>Status</dt><dd>{caseSheetStatus(detail) ? sheetStatusLabels[caseSheetStatus(detail)!] : 'Ikke angivet'}</dd>
+              <dt>Besigtiget</dt><dd>{caseInspection(detail, today) ? inspectionLabels[caseInspection(detail, today)!] : 'Ikke angivet'}
+                {detail.inspection_date && ` · ${shortDate.format(new Date(`${detail.inspection_date}T00:00:00Z`))}`}</dd>
               <dt>Solgt i måned</dt><dd>{caseSalesMonth(detail) ? salesMonthLabel(caseSalesMonth(detail)!) : 'Ikke angivet'}</dd>
-              <dt>Fuldført</dt><dd>{caseCompleted(detail) === true ? 'Ja' : caseCompleted(detail) === false ? 'Nej' : 'Ikke angivet'}</dd>
-              {detail.status_basis && <><dt>Statusgrundlag</dt><dd>{detail.status_basis}</dd></>}
+              <dt>Fremdrift</dt><dd>{detail.status ? statusLabels[detail.status] : 'Ikke angivet'}</dd>
+              {detail.status_basis && <><dt>Fremdriftsgrundlag</dt><dd>{detail.status_basis}</dd></>}
               <dt>Beløb</dt><dd>{detail.estimated_value_dkk !== undefined ? currency.format(detail.estimated_value_dkk) : 'Ikke angivet'}</dd>
               {local && <><dt>Faktureret</dt><dd>{detail.invoiced === true ? 'Ja' : detail.invoiced === false ? 'Nej' : 'Ikke angivet'}</dd></>}
               {detail.product_type && <><dt>Produkt</dt><dd>{detail.product_type}</dd></>}
@@ -302,7 +328,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
             {visible.map(c => <button className="case-row" key={c.id} onClick={() => setSelected(c)}>
               <span><strong>{c.customer_name || 'Virksomhed ikke angivet'}</strong>
                 <small>{c.address_raw || 'Adresse ikke angivet'}</small>
-                <small>{caseAdvisors(c, advisors).map(a => <span className="advisor-swatch" key={a.key} title={a.name} style={{ backgroundColor: a.color }} aria-hidden="true" />)} {c.advisor || 'Rådgiver mangler'} · {c.status ? statusLabels[c.status] : 'Status mangler'}{!hasPosition(c) ? ' · Uden placering' : ''}</small>
+                <small>{caseAdvisors(c, advisors).map(a => <span className="advisor-swatch" key={a.key} title={a.name} style={{ backgroundColor: a.color }} aria-hidden="true" />)} {c.advisor || 'Rådgiver mangler'} · {caseSheetStatus(c) ? sheetStatusLabels[caseSheetStatus(c)!] : c.status ? statusLabels[c.status] : 'Status mangler'}{caseInspection(c, today) === 'ja' ? ' · Besigtiget' : caseInspection(c, today) === 'planlagt' ? ' · Besigtigelse planlagt' : ''}{!hasPosition(c) ? ' · Uden placering' : ''}</small>
               </span><span aria-hidden="true">›</span>
             </button>)}
             {!visible.length && <div className="empty-state"><h3>Ingen sager matcher</h3><button className="text-button" onClick={resetFilters}>Nulstil filtrene</button></div>}

@@ -30,10 +30,13 @@ it('removes the saved copy, including when already empty', async () => {
 })
 
 it('retains month and exact completion flags on restore without breaking legacy snapshots', async () => {
-  const updated = { ...data, cases: [{ ...data.cases[0], sales_month: '2026-02', completed: false }] }
+  const extra = { sheet_status: 'igang' as const, inspection: 'ja' as const, inspection_date: '2026-03-04' }
+  const updated = { ...data, cases: [{ ...data.cases[0], sales_month: '2026-02', completed: false, ...extra }] }
   await saveImport('Salgsliste.xlsx', updated)
-  expect((await loadSavedImport())?.data.cases[0]).toMatchObject({ sales_month: '2026-02', completed: false })
+  expect((await loadSavedImport())?.data.cases[0]).toMatchObject({ sales_month: '2026-02', completed: false, ...extra })
   await expect(saveImport('bad.xlsx', { ...updated, cases: [{ ...updated.cases[0], sales_month: '2026-13' }] })).rejects.toThrow('gyldig')
+  await expect(saveImport('bad.xlsx', { ...updated, cases: [{ ...updated.cases[0], inspection_date: '2026-02-30' }] })).rejects.toThrow('gyldig')
+  await expect(saveImport('bad.xlsx', { ...updated, cases: [{ ...updated.cases[0], sheet_status: 'Igang' as never }] })).rejects.toThrow('gyldig')
   expect((await loadSavedImport())?.data).toEqual(updated)
   await saveImport('old.xlsx', data)
   expect((await loadSavedImport())?.data).toEqual(data)

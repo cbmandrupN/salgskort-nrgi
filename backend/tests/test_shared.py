@@ -57,16 +57,21 @@ def test_auth_fails_closed(client, monkeypatch, code):
 
 
 def test_sale_month_and_completed_roundtrip(client, payload):
-    payload["data"]["cases"][0].update(sales_month="2026-02", completed=False, status="lukket")
+    payload["data"]["cases"][0].update(
+        sales_month="2026-02", completed=False, status="lukket",
+        sheet_status="igang", inspection="ja", inspection_date="2026-03-04",
+    )
     assert client.put(URL, headers=AUTH, json=payload).status_code == 200
     saved = client.get(URL, headers=AUTH).json()["data"]["cases"][0]
     assert saved["sales_month"] == "2026-02"
     assert saved["completed"] is False
     assert saved["status"] == "lukket"
+    assert (saved["sheet_status"], saved["inspection"], saved["inspection_date"]) == ("igang", "ja", "2026-03-04")
 
 
 @pytest.mark.parametrize("fields", [
     {"sales_month": "2026-13"}, {"sales_month": "februar"}, {"completed": "Nej"},
+    {"sheet_status": "Igang"}, {"inspection": "true"}, {"inspection_date": "04-03-2026"},
 ])
 def test_rejects_invalid_sale_filter_fields(client, payload, fields):
     payload["data"]["cases"][0].update(fields)

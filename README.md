@@ -125,17 +125,29 @@ to a cached `Salgsmåned` value in `YYYY-MM` format. It never uses a completion 
 closing date as the sale date. Month choices come from the whole imported dataset.
 Missing/invalid months remain visible under **Ikke angivet** with import issues.
 
-**Fuldført** reads the actual `Fuldført` column independently of derived status:
-**Ja** means `Ja`; **Nej** includes `Nej`, `Delvist` and a blank cell in an existing
-column (not marked complete). Unknown values, unreadable cells or a missing
-column are **Ikke angivet**, not guessed from `Lukket i BC`.
-Both filters combine with search, department, advisor, status and unplaced-only;
-**Nulstil**, successful import, removal and shared refresh clear both.
-Old saved snapshots are still readable: their sale month is derived from the
-saved sale date, and only unambiguous completed/partly-completed statuses provide
-a completion fallback. Reimport the XLSX to populate exact completion flags,
-especially for closed cases. New optional fields survive local and shared storage;
-the shared backend needs this compatible schema update before publishing new imports.
+**Status** reads the workbook's `Status` column (`Nej`, `Igang`/`I gang`,
+`Afsluttet`; case and surrounding spaces are ignored). Blank or unknown values are
+**Ikke angivet**; unknown values are also listed as import issues. Older workbooks
+without `Status` fall back to `Fuldført` (`Ja` → Afsluttet, `Delvist` → I gang,
+`Nej` → Nej). Status is never guessed from `Lukket i BC`.
+
+**Besigtiget** derives from `Besigtigelsesdato`: a valid date is **Ja** (a date
+after today is shown as **Planlagt**), blank/`-`/`Nej` is **Nej**, and
+`ingen påkrævet`/`ikke påkrævet` is **Ikke påkrævet**. Unreadable values are
+**Ikke angivet** and reported with the Excel row number.
+
+The separate **Fremdrift** filter keeps the derived progress (see precedence below)
+in a fixed workflow order rather than alphabetical order.
+All filters combine with search, department, advisor and unplaced-only;
+**Nulstil**, successful import, removal and shared refresh clear them.
+Old saved snapshots are still readable, but lack Status/Besigtiget values:
+reimport the latest XLSX to populate them. New optional fields survive local and
+shared storage (the shared backend schema accepts them).
+
+**Sortér sager** in the side list orders by newest sale (default), oldest sale,
+company (Danish A–Å), advisor or postcode. Missing values sort last, and ties are
+broken by company and Excel row so the list order is stable. Import issues are
+listed by Excel row number.
 
 The advisor bar sits below the search/filters, directly above the map. It replaces
 the advisor dropdown and lists **only Bygninger
@@ -184,12 +196,14 @@ Do not commit the workbook, screenshots of customer data or extracted case recor
 
 `frontend/src/lib/workbook.ts` explicitly maps the actual `Opgaver` columns:
 `Virksomhed`, `Adresse (Besigtiget)`, `Post nr.`, `Afdeling`, `Rådgiver`,
-`Projekt nr.`, `Salgsdato`, `Beløb`, `Produkt type` and progress/billing flags.
+`Projekt nr.`, `Salgsdato`, `Beløb`, `Produkt type`, `Status`, `Besigtigelsesdato`
+and progress/billing flags (`Faktureret (CHAT/CHPI)` and `Lukket i BC (CHAT/CHPI)`,
+with the older short headers accepted).
 Contact names, CVR, telephone numbers, email addresses and free-text comments are
 not copied into the app's case records.
 
-Progress precedence is **Lukket i BC → Fuldført → Delvist færdig → Rapport sendt →
-I gang (oprettet i BC) → Ny**. Billing is shown separately, not treated as completion.
+Progress precedence is **Lukket i BC → Status Afsluttet/Fuldført → Delvist færdig →
+Rapport sendt → Status Igang → I gang (oprettet i BC) → Ny**. Billing is shown separately, not treated as completion.
 The details panel names the source flag behind the derived status. Unknown flags,
 bad amounts and missing/conflicting postcodes are reported with the Excel row number.
 Duplicate project numbers remain separate cases.
