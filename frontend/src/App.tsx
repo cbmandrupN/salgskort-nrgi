@@ -14,7 +14,7 @@ import { LocalLogin } from './components/LocalLogin'
 import { fetchSharedSnapshot, publishSharedSnapshot } from './lib/shared-api'
 import type { SharedSession } from './lib/shared-api'
 import { caseInspection, caseSalesMonth, caseSheetStatus, caseSortLabels, inspectionLabels, inspectionOptions, matchesSalesFilters,
-  PROGRESS_ORDER, salesMonthLabel, salesMonthOptions, sheetStatusLabels, sheetStatusOptions, sortCases, todayIso } from './lib/sales-filters'
+  salesMonthLabel, salesMonthOptions, sheetStatusLabels, sheetStatusOptions, sortCases, todayIso } from './lib/sales-filters'
 import type { CaseSort } from './lib/sales-filters'
 
 const statusLabels: Record<CaseStatus, string> = {
@@ -47,7 +47,6 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   const [search, setSearch] = useState('')
   const [advisor, setAdvisor] = useState('')
   const [department, setDepartment] = useState(DEFAULT_DEPARTMENT)
-  const [status, setStatus] = useState('')
   const [salesMonth, setSalesMonth] = useState('')
   const [sheetStatus, setSheetStatus] = useState('')
   const [inspection, setInspection] = useState('')
@@ -89,7 +88,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   }, [sharedSession])
 
   function resetFilters() {
-    setSearch(''); setAdvisor(''); setDepartment(DEFAULT_DEPARTMENT); setStatus('')
+    setSearch(''); setAdvisor(''); setDepartment(DEFAULT_DEPARTMENT)
     setSalesMonth(''); setSheetStatus(''); setInspection('')
     setArea(''); setSelected(null)
   }
@@ -170,7 +169,6 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   const missingAdvisors = buildings.filter(c => !advisorNames(c.advisor).length).length
   function selectAdvisor(key: string) {
     setAdvisor(key); setDepartment(DEFAULT_DEPARTMENT); setArea(''); setSelected(null)
-    if (!buildings.some(c => c.status === status)) setStatus('')
   }
   const today = todayIso()
   const filtered = useMemo(() => {
@@ -178,15 +176,12 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
     return departmentCases.filter(c =>
       (!needle || [c.customer_name, c.address_raw, c.case_number, c.postal_code].join(' ').toLocaleLowerCase('da-DK').includes(needle)) &&
       (!advisor || (advisor === MISSING_ADVISOR ? !advisorNames(c.advisor).length : hasAdvisor(c, advisor))) &&
-      (!status || c.status === status) &&
       matchesSalesFilters(c, { month: salesMonth, sheetStatus, inspection, today })
     )
-  }, [departmentCases, search, advisor, status, salesMonth, sheetStatus, inspection, today])
+  }, [departmentCases, search, advisor, salesMonth, sheetStatus, inspection, today])
   const visible = useMemo(() => sortCases(area ? filtered.filter(c => locationKey(c) === area) : filtered, sort), [filtered, area, sort])
   const detail = selected && visible.some(c => c.id === selected.id) ? selected : null
   const departments = [...new Set(data?.cases.flatMap(c => c.department ? [c.department] : []))].sort((a, b) => a.localeCompare(b, 'da'))
-  const presentStatuses = new Set(departmentCases.map(c => c.status))
-  const availableStatuses = PROGRESS_ORDER.filter(s => presentStatuses.has(s) || s === status)
   const months = useMemo(() => salesMonthOptions(data?.cases ?? []), [data])
   const sheetStatuses = useMemo(() => sheetStatusOptions(data?.cases ?? []), [data])
   const inspections = useMemo(() => inspectionOptions(data?.cases ?? [], today), [data, today])
@@ -235,7 +230,7 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
         <label className="search"><span>Søg</span><input type="search" placeholder="Virksomhed, adresse eller projektnr."
           value={search} onChange={e => { setSearch(e.target.value); setArea('') }} /></label>
         <label><span>Afdeling</span><select aria-label="Afdeling" value={department} onChange={e => {
-          setDepartment(e.target.value); setAdvisor(''); setStatus(''); setArea(''); setSelected(null)
+          setDepartment(e.target.value); setAdvisor(''); setArea(''); setSelected(null)
         }}>
           <option value={DEFAULT_DEPARTMENT}>Bygninger (alle)</option>
           <option value="">Alle afdelinger</option>{departments.map(d => <option key={d}>{d}</option>)}
@@ -258,9 +253,6 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
           <option value="">Alle måneder</option>
           {months.map(month => <option key={month} value={month}>{salesMonthLabel(month)}</option>)}
           <option value="__missing">Ikke angivet</option>
-        </select></label>
-        <label><span>Fremdrift</span><select aria-label="Fremdrift" value={status} onChange={e => { setStatus(e.target.value); setArea(''); setSelected(null) }}>
-          <option value="">Alle</option>{availableStatuses.map(s => <option key={s} value={s}>{statusLabels[s]}</option>)}
         </select></label>
         <button className="text-button" onClick={resetFilters}>Nulstil</button>
       </section>

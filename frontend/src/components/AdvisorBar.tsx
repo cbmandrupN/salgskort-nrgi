@@ -13,7 +13,6 @@ export function AdvisorBar({ advisors, selected, total, missing, onSelect, child
   return <section className="advisor-bar" aria-labelledby="advisor-heading">
     <div className="advisor-bar-heading">
       <h2 id="advisor-heading">Rådgivere i Bygninger</h2>
-      <p>Klik på et navn for at filtrere. Fælles sager tæller hos hver rådgiver.</p>
       {children && <div className="advisor-bar-extra">{children}</div>}
     </div>
     <div className="advisor-buttons" role="group" aria-label="Vælg rådgiver i Bygninger">

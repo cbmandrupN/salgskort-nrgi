@@ -138,8 +138,7 @@ after today is shown as **Planlagt**), blank/`-`/`Nej` is **Nej**, and
 `ingen påkrævet`/`ikke påkrævet` is **Ikke påkrævet**. Unreadable values are
 **Ikke angivet** and reported with the Excel row number.
 
-The separate **Fremdrift** filter keeps the derived progress (see precedence below)
-in a fixed workflow order rather than alphabetical order.
+The derived progress (**Fremdrift**, see precedence below) is shown in case\ndetails but is not a filter, because it overlaps with Status.
 All filters combine with search, department and advisor;
 **Nulstil**, successful import, removal and shared refresh clear them.
 Old saved snapshots are still readable, but lack Status/Besigtiget values:
