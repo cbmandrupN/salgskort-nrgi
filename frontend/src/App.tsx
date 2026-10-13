@@ -190,8 +190,6 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   const months = useMemo(() => salesMonthOptions(data?.cases ?? []), [data])
   const sheetStatuses = useMemo(() => sheetStatusOptions(data?.cases ?? []), [data])
   const inspections = useMemo(() => inspectionOptions(data?.cases ?? [], today), [data, today])
-  const unknownSheetStatus = departmentCases.some(c => caseSheetStatus(c) === undefined)
-  const unknownInspection = departmentCases.some(c => caseInspection(c, today) === undefined)
   const staleImport = departmentCases.some(c => !c.sheet_status && c.inspection === undefined && c.completed !== undefined)
   const local = data?.meta.data_source === 'local'
   const demo = data?.meta.data_source === 'demo'
@@ -274,15 +272,12 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
         </select></label>
         <button className="text-button" onClick={resetFilters}>Nulstil</button>
       </section>
-      <div className="list-options">
-        <p className="filter-help">Status og Besigtiget læses fra arkets kolonner Status og Besigtigelsesdato (dato = Ja, tom eller “-” = Nej, fremtidig dato = Planlagt). Fremdrift samler også Rapport sendt og Lukket i BC.
-          {staleImport ? ' Den gemte kopi er fra en ældre version af arket. Indlæs den nyeste Excel-fil for at filtrere på Status og Besigtiget.'
-            : (unknownSheetStatus || unknownInspection) && ' Sager uden en læsbar værdi findes under Ikke angivet.'}</p>
-        {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
-        <span aria-live="polite">{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
-      </div>
+      {staleImport && <p className="filter-help">Den gemte kopi er fra en ældre version af arket. Indlæs den nyeste Excel-fil for at filtrere på Status og Besigtiget.</p>}
       <AdvisorBar advisors={advisors} selected={department === DEFAULT_DEPARTMENT ? advisor : null}
-        total={buildings.length} missing={missingAdvisors} onSelect={selectAdvisor} />
+        total={buildings.length} missing={missingAdvisors} onSelect={selectAdvisor}>
+        {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
+        <span className="advisor-count" aria-live="polite">{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
+      </AdvisorBar>
       <section className="workspace">
         <div className="map-wrap" aria-label="Kort over sager">
           <CaseMap cases={filtered} advisors={advisors} onAreaClick={key => { setArea(key); setSelected(null) }} />

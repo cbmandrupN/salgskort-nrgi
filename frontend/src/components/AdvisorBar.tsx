@@ -1,17 +1,20 @@
+import type { ReactNode } from 'react'
 import { CASPER_PINK, MISSING_ADVISOR, UNASSIGNED_COLOR } from '../lib/advisors'
 import type { Advisor } from '../lib/advisors'
 
-export function AdvisorBar({ advisors, selected, total, missing, onSelect }: {
+export function AdvisorBar({ advisors, selected, total, missing, onSelect, children }: {
   advisors: Advisor[]
   selected: string | null
   total: number
   missing: number
   onSelect: (key: string) => void
+  children?: ReactNode
 }) {
   return <section className="advisor-bar" aria-labelledby="advisor-heading">
     <div className="advisor-bar-heading">
       <h2 id="advisor-heading">Rådgivere i Bygninger</h2>
       <p>Klik på et navn for at filtrere. Fælles sager tæller hos hver rådgiver.</p>
+      {children && <div className="advisor-bar-extra">{children}</div>}
     </div>
     <div className="advisor-buttons" role="group" aria-label="Vælg rådgiver i Bygninger">
       <button className="advisor-button" aria-pressed={selected === ''} onClick={() => onSelect('')}>
