@@ -274,10 +274,10 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
         </select></label>
         <button className="text-button" onClick={resetFilters}>Nulstil</button>
       </section>
-      <p className="filter-help">Status og Besigtiget læses fra arkets kolonner Status og Besigtigelsesdato (dato = Ja, tom eller “-” = Nej, fremtidig dato = Planlagt). Fremdrift samler også Rapport sendt og Lukket i BC.
-        {staleImport ? ' Den gemte kopi er fra en ældre version af arket. Indlæs den nyeste Excel-fil for at filtrere på Status og Besigtiget.'
-          : (unknownSheetStatus || unknownInspection) && ' Sager uden en læsbar værdi findes under Ikke angivet.'}</p>
       <div className="list-options">
+        <p className="filter-help">Status og Besigtiget læses fra arkets kolonner Status og Besigtigelsesdato (dato = Ja, tom eller “-” = Nej, fremtidig dato = Planlagt). Fremdrift samler også Rapport sendt og Lukket i BC.
+          {staleImport ? ' Den gemte kopi er fra en ældre version af arket. Indlæs den nyeste Excel-fil for at filtrere på Status og Besigtiget.'
+            : (unknownSheetStatus || unknownInspection) && ' Sager uden en læsbar værdi findes under Ikke angivet.'}</p>
         {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
         <span aria-live="polite">{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
       </div>
