@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { Case } from '../types/cases'
-import { advisorKey, buildingAdvisors, CASPER_PINK, caseAdvisors, hasAdvisor, MISSING_ADVISOR, UNASSIGNED_COLOR } from './advisors'
+import { advisorKey, advisorRoster, buildingAdvisors, CASPER_PINK, caseAdvisors, hasAdvisor, MISSING_ADVISOR, UNASSIGNED_COLOR } from './advisors'
 import { groupCases, markerBackground } from './map-groups'
 
 const row = (advisor: string, department = 'Bygninger Vest', id = advisor): Case => ({
@@ -37,11 +37,21 @@ it('keeps colors independent of Excel row order and case/status filtering', () =
     .toBe(advisors.find(a => a.key === advisorKey('Demo Anna'))?.color)
 })
 
-it('does not color other departments as Bygninger, even for an identically named advisor', () => {
+it('keeps the Bygninger roster scoped and marks unassigned cases', () => {
   const advisors = buildingAdvisors(cases)
-  expect(caseAdvisors(cases[7], advisors)).toEqual([{ key: '__other', name: 'Andre afdelinger', color: UNASSIGNED_COLOR }])
+  expect(advisors.some(a => a.name === 'Kun Industri')).toBe(false)
   expect(caseAdvisors(cases[6], advisors)[0].key).toBe(MISSING_ADVISOR)
   expect(caseAdvisors(cases[6], advisors)[0].color).toBe(UNASSIGNED_COLOR)
+})
+
+it('lists and colors Industri advisors when that department is selected', () => {
+  const industrialCases = cases.filter(c => c.department === 'Industri')
+  const advisors = advisorRoster(industrialCases)
+  expect(advisors.map(a => [a.name, a.count])).toEqual([['Casper Bøvling', 1], ['Kun Industri', 1]])
+  expect(caseAdvisors(industrialCases[0], advisors).map(a => a.key)).toEqual(['kun industri'])
+  const [group] = groupCases(industrialCases, advisors)
+  expect(group.advisors.map(a => a.key)).toEqual(['casper bøvling', 'kun industri'])
+  expect(group.advisors.map(a => a.color)).toEqual(advisors.map(a => a.color))
 })
 
 it('shows every advisor at a shared location, with proportional segments and no lost cases', () => {

@@ -26,13 +26,11 @@ function nameHash(name: string): number {
   return hash
 }
 
-export function buildingAdvisors(cases: readonly Case[]): Advisor[] {
+export function advisorRoster(cases: readonly Case[], includeDefaultAdvisor = false): Advisor[] {
   const casperKey = advisorKey('Casper Bøvling')
-  const names = new Map<string, { name: string; count: number }>([
-    [casperKey, { name: 'Casper Bøvling', count: 0 }],
-  ])
+  const names = new Map<string, { name: string; count: number }>()
+  if (includeDefaultAdvisor) names.set(casperKey, { name: 'Casper Bøvling', count: 0 })
   for (const c of cases) {
-    if (!matchesDepartment(c, DEFAULT_DEPARTMENT)) continue
     for (const name of advisorNames(c.advisor)) {
       const key = advisorKey(name)
       const previous = names.get(key)
@@ -56,10 +54,10 @@ export function buildingAdvisors(cases: readonly Case[]): Advisor[] {
   })
 }
 
+export const buildingAdvisors = (cases: readonly Case[]) =>
+  advisorRoster(cases.filter(c => matchesDepartment(c, DEFAULT_DEPARTMENT)), true)
+
 export function caseAdvisors(c: Case, advisors: readonly Advisor[]): Pick<Advisor, 'key' | 'name' | 'color'>[] {
-  if (!matchesDepartment(c, DEFAULT_DEPARTMENT)) {
-    return [{ key: '__other', name: 'Andre afdelinger', color: UNASSIGNED_COLOR }]
-  }
   const keys = new Set(advisorNames(c.advisor).map(advisorKey))
   const owners = advisors.filter(a => keys.has(a.key))
   return owners.length ? owners : [{ key: MISSING_ADVISOR, name: 'Rådgiver ikke angivet', color: UNASSIGNED_COLOR }]

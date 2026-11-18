@@ -69,7 +69,7 @@ export function CaseMap({ cases, advisors, onAreaClick }: { cases: Case[]; advis
         <option value="standard">Standard</option>
       </select>
     </label>
-    <p className="map-color-note">Flere farver = flere rådgivere i området. Grå = uden rådgiver eller andre afdelinger.</p>
+    <p className="map-color-note">Flere farver = flere rådgivere i området. Grå = rådgiver ikke angivet.</p>
     {tileError && <p className="tile-warning" role="status">Baggrundskortet kunne ikke hentes fuldt. Sagerne kan stadig ses i listen.</p>}
   </div>
 }

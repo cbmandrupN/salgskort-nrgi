@@ -5,7 +5,7 @@ import { fetchCases } from './lib/api'
 import { DEFAULT_DEPARTMENT, matchesDepartment } from './lib/departments'
 import { CaseMap } from './components/CaseMap'
 import { AdvisorBar } from './components/AdvisorBar'
-import { advisorNames, buildingAdvisors, caseAdvisors, hasAdvisor, MISSING_ADVISOR } from './lib/advisors'
+import { advisorNames, advisorRoster, caseAdvisors, hasAdvisor, MISSING_ADVISOR } from './lib/advisors'
 import { hasPosition, locationKey } from './lib/map-groups'
 import { readWorkbookFile } from './lib/read-workbook-file'
 import { loadSavedImport, removeSavedImport, saveImport } from './lib/saved-import'
@@ -164,11 +164,10 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
   }
 
   const departmentCases = useMemo(() => data?.cases.filter(c => matchesDepartment(c, department)) ?? [], [data, department])
-  const buildings = useMemo(() => data?.cases.filter(c => matchesDepartment(c, DEFAULT_DEPARTMENT)) ?? [], [data])
-  const advisors = useMemo(() => buildingAdvisors(buildings), [buildings])
-  const missingAdvisors = buildings.filter(c => !advisorNames(c.advisor).length).length
+  const advisors = useMemo(() => advisorRoster(departmentCases, department === DEFAULT_DEPARTMENT), [departmentCases, department])
+  const missingAdvisors = departmentCases.filter(c => !advisorNames(c.advisor).length).length
   function selectAdvisor(key: string) {
-    setAdvisor(key); setDepartment(DEFAULT_DEPARTMENT); setArea(''); setSelected(null)
+    setAdvisor(key); setArea(''); setSelected(null)
   }
   const today = todayIso()
   const filtered = useMemo(() => {
@@ -257,8 +256,9 @@ function Dashboard({ sharedSession, onSignOut }: { sharedSession?: SharedSession
         <button className="text-button" onClick={resetFilters}>Nulstil</button>
       </section>
       {staleImport && <p className="filter-help">Den gemte kopi er fra en ældre version af arket. Indlæs den nyeste Excel-fil for at filtrere på Status og Besigtiget.</p>}
-      <AdvisorBar advisors={advisors} selected={department === DEFAULT_DEPARTMENT ? advisor : null}
-        total={buildings.length} missing={missingAdvisors} onSelect={selectAdvisor}>
+      <AdvisorBar advisors={advisors} selected={advisor}
+        scopeLabel={department === DEFAULT_DEPARTMENT ? 'Bygninger' : department || 'alle afdelinger'}
+        total={departmentCases.length} missing={missingAdvisors} onSelect={selectAdvisor}>
         {area && <button className="text-button" onClick={() => { setArea(''); setSelected(null) }}>Vis alle områder ×</button>}
         <span className="advisor-count" aria-live="polite">{visible.length} af {departmentCases.length} sager i den valgte afdeling</span>
       </AdvisorBar>

@@ -2,9 +2,10 @@ import type { ReactNode } from 'react'
 import { CASPER_PINK, MISSING_ADVISOR, UNASSIGNED_COLOR } from '../lib/advisors'
 import type { Advisor } from '../lib/advisors'
 
-export function AdvisorBar({ advisors, selected, total, missing, onSelect, children }: {
+export function AdvisorBar({ advisors, selected, scopeLabel, total, missing, onSelect, children }: {
   advisors: Advisor[]
   selected: string | null
+  scopeLabel: string
   total: number
   missing: number
   onSelect: (key: string) => void
@@ -12,12 +13,12 @@ export function AdvisorBar({ advisors, selected, total, missing, onSelect, child
 }) {
   return <section className="advisor-bar" aria-labelledby="advisor-heading">
     <div className="advisor-bar-heading">
-      <h2 id="advisor-heading">Rådgivere i Bygninger</h2>
+      <h2 id="advisor-heading">Rådgivere i {scopeLabel}</h2>
       {children && <div className="advisor-bar-extra">{children}</div>}
     </div>
-    <div className="advisor-buttons" role="group" aria-label="Vælg rådgiver i Bygninger">
+    <div className="advisor-buttons" role="group" aria-label={`Vælg rådgiver i ${scopeLabel}`}>
       <button className="advisor-button" aria-pressed={selected === ''} onClick={() => onSelect('')}>
-        <span>Alle i Bygninger</span><span className="advisor-count">{total}<span className="visually-hidden"> sager</span></span>
+        <span>{scopeLabel === 'alle afdelinger' ? 'Alle rådgivere' : `Alle i ${scopeLabel}`}</span><span className="advisor-count">{total}<span className="visually-hidden"> sager</span></span>
         {selected === '' && <span aria-hidden="true">✓</span>}
       </button>
       {advisors.map(a => <button className="advisor-button" key={a.key}
@@ -31,10 +32,10 @@ export function AdvisorBar({ advisors, selected, total, missing, onSelect, child
       {missing > 0 && <button className="advisor-button" aria-pressed={selected === MISSING_ADVISOR}
         onClick={() => onSelect(selected === MISSING_ADVISOR ? '' : MISSING_ADVISOR)}>
         <span className="advisor-swatch" style={{ backgroundColor: UNASSIGNED_COLOR }} aria-hidden="true" />
-        <span>Ikke angivet</span><span className="advisor-count">{missing}<span className="visually-hidden"> sager</span></span>
+        <span>Rådgiver ikke angivet</span><span className="advisor-count">{missing}<span className="visually-hidden"> sager</span></span>
         {selected === MISSING_ADVISOR && <span aria-hidden="true">✓</span>}
       </button>}
     </div>
-    {!advisors.some(a => a.count > 0) && <p className="advisor-empty">Ingen sager med navngivne rådgivere i Bygninger i den indlæste fil.</p>}
+    {!advisors.some(a => a.count > 0) && <p className="advisor-empty">Ingen sager med navngivne rådgivere i {scopeLabel} i den indlæste fil.</p>}
   </section>
 }
